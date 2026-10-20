@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# 分享页是一次性的，不该被收录
+Disallow: /d/
+Disallow: /api/
+
+Sitemap: https://sixdrop.dev/sitemap.xml

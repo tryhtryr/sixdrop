@@ -1,0 +1,8 @@
+{
+  "name": "sixdrop-tools",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "playwright-core": "^1.51.0"
+  }
+}
