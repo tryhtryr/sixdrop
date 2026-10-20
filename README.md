@@ -89,4 +89,6 @@ Early but stable. Known limits: no resume after a dropped connection, and Firefo
 
 ## License
 
-Not licensed yet — open an issue if you want to use it commercially.
+**No license is granted.**
+
+The source is public for reading and learning from, but it is *not* open source: without a license you may not copy, modify, redistribute, or use it commercially. If you want to do any of those, open an issue and ask.
