@@ -48,6 +48,8 @@ const s = {
   dropToken: '',
   textViaServer: false,
   mode: 'file',
+  filePanel: 'idle',
+  batchDone: false,
   rate: 0,
   speedAt: 0,
   speedBase: 0,
@@ -69,10 +71,62 @@ const s = {
 
 /* ---------------- 界面 ---------------- */
 
-function show(name) {
-  for (const el of document.querySelectorAll('.view')) {
-    el.hidden = el.id !== `view-${name}`;
+/**
+ * 视图路由。wait/ask/xfer/chat 已经不单独成页，而是房间里的面板：
+ * 「文件」面板有 空闲 / 确认 / 进度 三态，「文本」面板是聊天。
+ * 其余名字（start / error / relay / room）还是独立视图。
+ */
+const PANEL_OF = {
+  wait: ['file', 'idle'],
+  ask: ['file', 'ask'],
+  xfer: ['file', 'progress'],
+  chat: ['text', null],
+};
+
+/** 切房间的两个标签；只动显示，不动 s.mode（文件会话里也能聊天） */
+function roomTab(name) {
+  const text = name === 'text';
+  const tabFile = $('tab-file');
+  const tabText = $('tab-text');
+  if (tabFile && tabText) {
+    tabFile.classList.toggle('is-active', !text);
+    tabText.classList.toggle('is-active', text);
+    tabFile.setAttribute('aria-selected', String(!text));
+    tabText.setAttribute('aria-selected', String(text));
   }
+  $('panel-file').hidden = text;
+  $('panel-text').hidden = !text;
+  if (text) setTimeout(() => $('chat-input')?.focus(), 60);
+}
+
+function setFilePanel(state) {
+  s.filePanel = state;
+  $('file-idle').hidden = state !== 'idle';
+  $('file-ask').hidden = state !== 'ask';
+  $('file-progress').hidden = state !== 'progress';
+}
+
+/** 文本面板当前是否就在眼前 */
+function chatVisible() {
+  return !$('view-room').hidden && !$('panel-text').hidden;
+}
+
+function show(name) {
+  const mapped = PANEL_OF[name];
+
+  // 独立视图（含 show('room')：只切到房间，面板状态不动）
+  if (!mapped) {
+    for (const el of document.querySelectorAll('.view')) {
+      el.hidden = el.id !== `view-${name}`;
+    }
+    return;
+  }
+
+  for (const el of document.querySelectorAll('.view')) {
+    el.hidden = el.id !== 'view-room';
+  }
+  roomTab(mapped[0]);
+  if (mapped[1]) setFilePanel(mapped[1]);
 }
 
 function fmtBytes(n) {
@@ -303,7 +357,7 @@ async function onSignal(msg) {
     case 'peers':
       s.peerUp = msg.n >= 2;
       if (s.role === 'sender') {
-        $('wait-sub').textContent = s.peerUp ? '对方已进入，正在建立直连…' : '等待对方输入取件码…';
+        $('wait-sub').textContent = s.peerUp ? '对方已进入，正在建立直连…' : '对方点开链接或输入取件码就能进来';
         if (s.peerUp && !s.offerSent) startOffer();
       } else {
         $('wait-sub').textContent = s.peerUp ? '正在建立直连…' : '正在寻找发送方…';
@@ -354,9 +408,14 @@ async function onSignal(msg) {
     case 'accept':
       if (s.role === 'sender') {
         s.accepted = true;
-        s.acceptResolver?.(true);
-        s.acceptResolver = null;
-        beginSending();
+        if (s.acceptResolver) {
+          s.acceptResolver(true);
+          s.acceptResolver = null;
+        } else if (!s.sending && !s.batchDone && s.files.length) {
+          // accept 会同时从 DataChannel 和信令到，第二条必须无视；
+          // 只有「没在传、这批也还没传完」（例如等确认超时后才点）才重开一次
+          beginSending();
+        }
       }
       break;
 
@@ -561,8 +620,9 @@ function wireChannel(dc, isSender) {
       return;
     }
 
-    // 通道打开后，如果已经有文件就直接开传；没有就等用户选
-    if (isSender && s.files.length) {
+    // 通道打开后，如果已经有文件就直接开传；没有就等用户选。
+    // 已经传完的一批不要因为重连又发一遍（等用户重新选文件）
+    if (isSender && s.files.length && !s.batchDone) {
       beginSending();
     }
   };
@@ -634,6 +694,7 @@ function startTextFallback(reason) {
   $('chat-title').textContent = '文本 · 经服务器转发';
   $('chat-note').textContent = `直连没打通（${reason || '网络受限'}），文字改由服务器转发。仅在本次会话内转发，不保存。`;
   show('chat');
+  startKeepalive();
   sendSignal({ t: 'text-relay' });
   setTimeout(() => $('chat-input').focus(), 60);
 }
@@ -651,9 +712,17 @@ function sendText(body) {
   return false;
 }
 
-/** 有消息进来时确保用户在聊天界面 */
+/** 有消息进来时把用户带到文本面板，但正在等确认 / 传文件中只提示、不抢画面 */
 function ensureChatView() {
-  if (!$('view-chat').hidden) return;
+  if (chatVisible()) return;
+
+  // 还在等对方点「接收」、或者正在传，这时候切面板会让人看不到进度
+  const busy = s.filePanel === 'ask' || (s.filePanel === 'progress' && !s.done);
+  if (busy || $('view-room').hidden) {
+    toast('收到一条文本消息');
+    return;
+  }
+
   show('chat');
   startKeepalive();
   toast('收到一条文本消息');
@@ -688,7 +757,7 @@ function startTextChat() {
       s.code = code;
       $('room-code').textContent = code;
       $('copy').hidden = false;
-      $('wait-sub').textContent = '等待对方输入取件码…';
+      $('wait-sub').textContent = '对方进来后自动开始对话';
       connect('sender');
     })
     .catch((err) => fail('创建房间失败', err?.message || String(err)));
@@ -715,6 +784,8 @@ function stopKeepalive() {
 async function beginSending() {
   if (s.sending || !s.files.length || !s.dc) return;
   s.sending = true;
+  s.batchDone = false;
+  s.accepted = false;
   s.done = false;
   s.count = s.files.length;
   s.totalSize = s.files.reduce((n, f) => n + f.size, 0);
@@ -768,7 +839,16 @@ async function beginSending() {
             ? s.warmPromise
             : prefetch(file, chunkSize, PREFETCH_BYTES);
         const accepted = await waitAccept();
-        if (!accepted) return;
+        if (!accepted) {
+          // 对方点了拒绝会自己把界面切回房间；这里只管「一直没点」的超时
+          if (!s.done) {
+            setFilePanel('idle');
+            roomTab('file');
+            $('wait-sub').textContent = '对方没有确认接收，可以稍后再试';
+            toast('对方没有确认接收');
+          }
+          return;
+        }
         warm = await warmPromised;
         s.warmPromise = null;
       }
@@ -804,12 +884,16 @@ async function beginSending() {
     }
 
     s.done = true;
+    s.batchDone = true;
     $('xfer-sub').textContent = s.files.length > 1 ? '全部发送完成' : '发送完成';
     $('back').hidden = false;
     stopKeepalive();
     keepAwakeOff();
   } catch (err) {
     fail('发送失败', err?.message || String(err));
+  } finally {
+    // 锁一定要放掉，否则同一房间里的第二批文件发不出去
+    s.sending = false;
   }
 }
 
@@ -1317,6 +1401,7 @@ function resetAll() {
 
   s.ws = null;
   s.code = null;
+  s.batchDone = false;
   s.files = [];
   s.meta = null;
   s.current = null;
@@ -1366,7 +1451,15 @@ function resetAll() {
   $('chat-note').textContent = '消息走 P2P 直连，不经过服务器。关掉页面就没了。';
   $('chat-title').textContent = '点对点消息';
   $('room-code').textContent = '------';
-  $('wait-sub').textContent = '等待对方输入取件码…';
+  $('wait-hint').textContent = '把取件码发给对方';
+  $('wait-sub').textContent = '对方点开链接或输入取件码就能进来';
+  $('wait-files').hidden = true;
+  $('wait-files').textContent = '';
+  $('copy').hidden = true;
+  $('copy-link').hidden = false;
+  resetFileList([]);
+  setFilePanel('idle');
+  roomTab('file');
 }
 
 async function keepAwake() {
@@ -1467,7 +1560,7 @@ async function startSend(fileList) {
   $('room-code').textContent = s.code;
   $('copy').hidden = false;
   $('wait-sub').textContent =
-    files.length > 1 ? `已选 ${files.length} 个文件 · 等待对方输入取件码…` : '等待对方输入取件码…';
+    files.length > 1 ? `已选 ${files.length} 个文件 · 等对方进来就开始传` : '等对方进来就开始传';
   connect('sender');
 }
 
@@ -1518,7 +1611,7 @@ async function boot() {
 
   $('room-code').textContent = s.code;
   $('copy').hidden = false;
-  $('wait-sub').textContent = '等待对方输入取件码…';
+  $('wait-sub').textContent = '对方点开链接或输入取件码就能进来';
   connect('sender');
 }
 
@@ -1609,11 +1702,16 @@ $('accept').addEventListener('click', async () => {
     }
   } catch (err) {
     if (err?.name === 'AbortError') {
-      // 用户取消了保存对话框：得回一个 decline，否则发送方会一直停在「准备中」
+      // 用户取消了保存对话框：得回一个 decline，否则发送方会一直停在「准备中」。
+      // 房间留着，对方换个文件还能再发。
       sendSignal({ t: 'decline' });
       toast('已取消接收');
-      resetAll();
-      boot();
+      s.meta = null;
+      s.dir = null;
+      s.pendingSink = null;
+      setFilePanel('idle');
+      roomTab('file');
+      $('wait-sub').textContent = '已取消接收，等对方重新发一批';
       return;
     }
     fail('无法创建本地文件', err?.message || String(err));
@@ -1644,28 +1742,20 @@ $('accept').addEventListener('click', async () => {
   updateHeader(s.meta);
 });
 
+// 拒绝只取消这一批，房间和取件码都留着，对方可以换一批再发
 $('decline').addEventListener('click', () => {
   sendSignal({ t: 'decline' });
-  resetAll();
-  show('start');
+  s.meta = null;
+  s.count = 0;
+  s.totalSize = 0;
+  setFilePanel('idle');
+  roomTab('file');
+  $('wait-sub').textContent = '已拒绝这一批，等对方重新发';
 });
 
-// 用当前房间直接聊，不再另建一个房间
-$('to-text').addEventListener('click', () => {
-  s.mode = 'text';
-  show('chat');
-  startKeepalive();
-  if (s.dc && s.dc.readyState === 'open') {
-    try {
-      s.dc.send(JSON.stringify({ t: 'hello', mode: 'text' }));
-    } catch {
-      /* 忽略 */
-    }
-  }
-  setTimeout(() => $('chat-input').focus(), 60);
-});
-
+// 离开房间：先告诉对方，再回首页（房间 TTL 会自己回收）
 $('cancel').addEventListener('click', () => {
+  sendSignal({ t: 'bye' });
   resetAll();
   show('start');
 });
@@ -1675,23 +1765,46 @@ $('home').addEventListener('click', () => {
   show('start');
 });
 
+// 传完之后回房间，码不变：对方还在就还能再发一批
 $('back').addEventListener('click', () => {
-  resetAll();
-  show('start');
+  if (!s.code) {
+    resetAll();
+    show('start');
+    return;
+  }
+  roomTab('file');
+  setFilePanel('idle');
+  show('room');
+  if (s.role === 'sender') {
+    $('wait-hint').textContent = '还能再发一批';
+    $('wait-sub').textContent = '选好文件就直接开传，对方还在这个房间里';
+  } else {
+    $('wait-hint').textContent = '房间还在';
+    $('wait-sub').textContent = '对方再发文件时会出现在这里';
+  }
+  $('wait-files').hidden = true;
+  $('wait-files').textContent = '';
+  s.files = [];
+  s.count = 0;
+  s.totalSize = 0;
 });
 
+/** 首页的标签只在自己的 section 里生效，别碰房间里的同名标签 */
 function selectTab(name) {
-  for (const tab of document.querySelectorAll('.tab')) {
-    const active = tab.id === `tab-${name}`;
+  for (const tab of document.querySelectorAll('#view-start .tab')) {
+    const active = tab.id === `start-tab-${name}`;
     tab.classList.toggle('is-active', active);
     tab.setAttribute('aria-selected', String(active));
   }
-  $('panel-file').hidden = name !== 'file';
-  $('panel-text').hidden = name !== 'text';
+  $('start-panel-file').hidden = name !== 'file';
+  $('start-panel-text').hidden = name !== 'text';
 }
 
-$('tab-file').addEventListener('click', () => selectTab('file'));
-$('tab-text').addEventListener('click', () => selectTab('text'));
+$('start-tab-file').addEventListener('click', () => selectTab('file'));
+$('start-tab-text').addEventListener('click', () => selectTab('text'));
+
+$('tab-file').addEventListener('click', () => roomTab('file'));
+$('tab-text').addEventListener('click', () => roomTab('text'));
 
 $('text-start').addEventListener('click', () => {
   startTextChat();
@@ -1735,22 +1848,6 @@ $('chat-form').addEventListener('submit', (ev) => {
   appendChat(body, true);
   $('chat-input').value = '';
   autoGrowChatInput();
-});
-
-// 回文件面板，房间和码都保留
-$('chat-to-file').addEventListener('click', () => {
-  if (s.code) {
-    show('wait');
-    return;
-  }
-  resetAll();
-  show('start');
-});
-
-// 真正离开：断开并重新开一个房间
-$('chat-back').addEventListener('click', () => {
-  sendSignal({ t: 'bye' });
-  boot();
 });
 
 $('use-relay').addEventListener('click', () => {

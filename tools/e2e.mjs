@@ -149,7 +149,8 @@ async function main() {
 
     await receiver.fill('#code', code);
     await receiver.press('#code', 'Enter');
-    await receiver.waitForSelector('#view-ask:not([hidden])', { timeout: 30000 });
+    await receiver.waitForSelector('#view-room:not([hidden])', { timeout: 30000 });
+    await receiver.waitForSelector('#file-ask:not([hidden])', { timeout: 30000 });
 
     assert.equal(await receiver.locator('#ask-name').textContent(), FILES[0].name);
     if (FILES.length > 1) {

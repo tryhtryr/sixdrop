@@ -36,6 +36,7 @@ Two people open the same web page. One picks files and gets a 6-digit code. The 
 - **6-digit pickup code** — no links to copy, no accounts, no email
 - **Multi-file transfer** — pick a folder on the receiving side and everything lands there
 - **Text messages too** — switch to the *Text* tab and send a sentence without transferring a file
+- **One room, start to finish** — the code is handed out once; the file panel and the text panel are two tabs of the same room, and you can send another batch without a new code
 - **Transfer verification code** — both sides see a short fingerprint of the DTLS certificate, so a MITM cannot silently swap the connection
 - **Explicit failure** — if NAT traversal fails you get a diagnostic instead of a silent hang: candidate types (host / srflx / relay) and a plain-language hint
 - **R2 fallback, opt-in** — when both peers sit behind symmetric NAT, the sender can park the files in Cloudflare R2 with 24-hour auto-delete and share a link instead

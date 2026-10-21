@@ -44,11 +44,11 @@
 
       <section id="view-start" class="view card">
         <div class="tabs" role="tablist">
-          <button class="tab is-active" id="tab-file" role="tab" aria-selected="true">发送文件</button>
-          <button class="tab" id="tab-text" role="tab" aria-selected="false">发送文本</button>
+          <button class="tab is-active" id="start-tab-file" role="tab" aria-selected="true">发送文件</button>
+          <button class="tab" id="start-tab-text" role="tab" aria-selected="false">发送文本</button>
         </div>
 
-        <div class="tab-panel" id="panel-file">
+        <div class="tab-panel" id="start-panel-file">
           <label class="drop" id="drop">
             <input type="file" id="file" hidden multiple />
             <span class="drop-title">选择文件发送</span>
@@ -56,7 +56,7 @@
           </label>
         </div>
 
-        <div class="tab-panel" id="panel-text" hidden>
+        <div class="tab-panel" id="start-panel-text" hidden>
           <div class="text-panel">
             <p class="drop-title">只发一段文本</p>
             <p class="drop-sub">双方连上后互发消息，走的也是 P2P 直连，不经过服务器。</p>
@@ -64,83 +64,91 @@
           </div>
         </div>
 
-        <div class="or"><span>或</span></div>
-
       </section>
 
-      <section id="view-chat" class="view card" hidden>
-        <p class="label" id="chat-title">点对点消息</p>
-        <p class="muted small" id="chat-note">消息走 P2P 直连，不经过服务器。关掉页面就没了。</p>
-        <ul class="chat" id="chat-list"></ul>
-        <form class="join chat-form" id="chat-form">
-          <textarea
-            id="chat-input"
-            rows="1"
-            maxlength="2000"
-            placeholder="输入消息，回车发送，Shift+回车换行"
-            autocomplete="off"
-          ></textarea>
-          <button type="submit">发送</button>
-        </form>
-        <div class="row chat-switch">
-          <button class="link" id="chat-to-file">← 发文件</button>
-          <button class="link" id="chat-back">离开房间</button>
+      <section id="view-room" class="view card" hidden>
+        <div class="room-head">
+          <div class="room-code">
+            <span class="muted small">取件码</span>
+            <b class="code" id="room-code">------</b>
+          </div>
+          <div class="room-actions">
+            <button class="link" id="copy">复制取件码</button>
+            <button class="link" id="copy-link">复制链接</button>
+            <button class="link" id="cancel">离开</button>
+          </div>
         </div>
-      </section>
 
-      <section id="view-wait" class="view card" hidden>
-        <p class="label" id="wait-hint">把取件码发给对方</p>
-        <div class="code" id="room-code">------</div>
-        <div class="row">
-          <button class="ghost" id="copy">复制取件码</button>
-          <button class="ghost" id="copy-link">复制链接</button>
+        <div class="tabs" role="tablist">
+          <button class="tab is-active" id="tab-file" role="tab" aria-selected="true">收发文件</button>
+          <button class="tab" id="tab-text" role="tab" aria-selected="false">发送文本</button>
         </div>
-        <p class="muted" id="wait-sub">等待对方输入取件码…</p>
-        <label class="drop wait-drop" id="drop-wait">
-          <input type="file" id="file-wait" hidden multiple />
-          <span class="drop-title">选择文件</span>
-          <span class="drop-sub">选好后等对方进来，一连接就开始传</span>
-        </label>
-        <p class="muted small" id="wait-files" hidden></p>
 
-        <form id="join" class="join wait-join">
-          <input
-            id="code"
-            maxlength="6"
-            placeholder="或输入对方的取件码"
-            autocomplete="off"
-            spellcheck="false"
-            autocapitalize="characters"
-          />
-          <button type="submit">加入</button>
-        </form>
+        <div id="panel-file">
+          <div id="file-idle">
+            <p class="muted small" id="wait-hint">把取件码发给对方</p>
+            <p class="muted" id="wait-sub">等待对方输入取件码…</p>
 
-        <button class="link" id="to-text">不发文件，改发文本 →</button>
-        <button class="link" id="cancel">取消</button>
-      </section>
+            <label class="drop" id="drop-wait">
+              <input type="file" id="file-wait" hidden multiple />
+              <span class="drop-title">选择文件</span>
+              <span class="drop-sub">选好后等对方进来，一连接就开始传</span>
+            </label>
+            <p class="muted small" id="wait-files" hidden></p>
 
-      <section id="view-ask" class="view card" hidden>
-        <p class="label">对方想给你发送</p>
-        <p class="fname" id="ask-name"></p>
-        <p class="muted" id="ask-size"></p>
-        <div class="row">
-          <button id="accept">接收并保存</button>
-          <button class="ghost" id="decline">拒绝</button>
+            <form id="join" class="join">
+              <input
+                id="code"
+                maxlength="6"
+                placeholder="或输入对方的取件码"
+                autocomplete="off"
+                spellcheck="false"
+                autocapitalize="characters"
+              />
+              <button type="submit">加入</button>
+            </form>
+          </div>
+
+          <div id="file-ask" hidden>
+            <p class="label">对方想给你发送</p>
+            <p class="fname" id="ask-name"></p>
+            <p class="muted" id="ask-size"></p>
+            <div class="row">
+              <button id="accept">接收并保存</button>
+              <button class="ghost" id="decline">拒绝</button>
+            </div>
+          </div>
+
+          <div id="file-progress" hidden>
+            <ul class="file-list" id="file-list"></ul>
+            <p class="fname" id="xfer-name">—</p>
+            <div class="bar"><div id="bar"></div></div>
+            <p class="muted" id="xfer-stats">准备中…</p>
+            <p class="muted" id="xfer-sub"></p>
+            <p class="verify" id="verify" hidden>
+              校验码 <b id="verify-code"></b>
+              <span>双方对照一致，说明中间人无法替换</span>
+              <span id="path" hidden></span>
+            </p>
+            <button class="ghost" id="back" hidden>返回</button>
+          </div>
         </div>
-      </section>
 
-      <section id="view-xfer" class="view card" hidden>
-        <ul class="file-list" id="file-list"></ul>
-        <p class="fname" id="xfer-name">—</p>
-        <div class="bar"><div id="bar"></div></div>
-        <p class="muted" id="xfer-stats">准备中…</p>
-        <p class="muted" id="xfer-sub"></p>
-        <p class="verify" id="verify" hidden>
-          校验码 <b id="verify-code"></b>
-          <span>双方对照一致，说明中间人无法替换</span>
-          <span id="path" hidden></span>
-        </p>
-        <button class="ghost" id="back" hidden>返回</button>
+        <div id="panel-text" hidden>
+          <p class="label" id="chat-title">点对点消息</p>
+          <p class="muted small" id="chat-note">消息走 P2P 直连，不经过服务器。关掉页面就没了。</p>
+          <ul class="chat" id="chat-list"></ul>
+          <form class="join chat-form" id="chat-form">
+            <textarea
+              id="chat-input"
+              rows="1"
+              maxlength="2000"
+              placeholder="输入消息，回车发送，Shift+回车换行"
+              autocomplete="off"
+            ></textarea>
+            <button type="submit">发送</button>
+          </form>
+        </div>
       </section>
 
       <section id="view-error" class="view card error" hidden>

@@ -57,6 +57,41 @@ body {
   font-size: 13px;
 }
 
+/* ---------- 房间头部：码常驻，离开前一直是同一个房间 ---------- */
+.room-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.room-code {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.room-head .code {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 0.18em;
+}
+
+.room-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  /* 窄屏折行时，操作按钮自己靠右排一行 */
+  margin-left: auto;
+}
+
+.room-head .link {
+  margin-top: 0;
+  padding: 6px 8px;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);
@@ -131,23 +166,6 @@ body {
   color: var(--muted);
   font-size: 13px;
   text-align: center;
-}
-
-.or {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--muted);
-  font-size: 12px;
-  margin: 18px 0;
-}
-
-.or::before,
-.or::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--line);
 }
 
 .join {

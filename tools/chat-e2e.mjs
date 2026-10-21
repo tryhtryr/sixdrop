@@ -59,10 +59,10 @@ try {
   await sender.goto(base);
   await receiver.goto(base);
 
-  // 切片 1 之后页面直接进等待页，文本标签还在选择页上
+  // 首页还在房间后面：先离开房间，再从首页选「发送文本」
   await sender.click('#cancel');
-  await sender.click('#tab-text');
-  await sender.waitForSelector('#panel-text:not([hidden])', { timeout: 5000 });
+  await sender.click('#start-tab-text');
+  await sender.waitForSelector('#start-panel-text:not([hidden])', { timeout: 5000 });
   await sender.click('#text-start');
   await sender.waitForFunction(
     () => /^[2-9A-HJ-NP-Z]{6}$/.test(document.getElementById('room-code').textContent.trim()),
@@ -75,8 +75,8 @@ try {
   await receiver.fill('#code', code);
   await receiver.press('#code', 'Enter');
 
-  await sender.waitForSelector('#view-chat:not([hidden])', { timeout: 30000 });
-  await receiver.waitForSelector('#view-chat:not([hidden])', { timeout: 30000 });
+  await sender.waitForSelector('#panel-text:not([hidden])', { timeout: 30000 });
+  await receiver.waitForSelector('#panel-text:not([hidden])', { timeout: 30000 });
   step('两端都进入对话');
 
   await sender.fill('#chat-input', '你好，这是一条测试消息');
