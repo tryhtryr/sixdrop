@@ -545,7 +545,7 @@ function wireChannel(dc, isSender) {
 
       if (msg.t === 'hello') {
         s.mode = msg.mode === 'text' ? 'text' : 'file';
-        if (s.mode === 'text') showChat('对方发起的对话');
+        if (s.mode === 'text') ensureChatView();
         return;
       }
 
@@ -618,6 +618,15 @@ function sendText(body) {
   return false;
 }
 
+/** 有消息进来时确保用户在聊天界面 */
+function ensureChatView() {
+  if (!$('view-chat').hidden) return;
+  show('chat');
+  startKeepalive();
+  toast('收到一条文本消息');
+  setTimeout(() => $('chat-input').focus(), 60);
+}
+
 function appendChat(body, mine) {
   const text = body.trim();
   if (!text) return;
@@ -625,6 +634,7 @@ function appendChat(body, mine) {
   const li = document.createElement('li');
   li.className = mine ? 'mine' : 'theirs';
   li.textContent = text;
+  if (!mine) ensureChatView();
   $('chat-list').appendChild(li);
   $('chat-list').scrollTop = $('chat-list').scrollHeight;
 }
@@ -1585,6 +1595,21 @@ $('decline').addEventListener('click', () => {
   show('start');
 });
 
+// 用当前房间直接聊，不再另建一个房间
+$('to-text').addEventListener('click', () => {
+  s.mode = 'text';
+  show('chat');
+  startKeepalive();
+  if (s.dc && s.dc.readyState === 'open') {
+    try {
+      s.dc.send(JSON.stringify({ t: 'hello', mode: 'text' }));
+    } catch {
+      /* 忽略 */
+    }
+  }
+  setTimeout(() => $('chat-input').focus(), 60);
+});
+
 $('cancel').addEventListener('click', () => {
   resetAll();
   show('start');
@@ -1658,6 +1683,10 @@ $('chat-form').addEventListener('submit', (ev) => {
 });
 
 $('chat-back').addEventListener('click', () => {
+  if (s.code) {
+    show('wait');
+    return;
+  }
   resetAll();
   show('start');
 });
