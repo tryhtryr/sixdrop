@@ -521,24 +521,10 @@ function wireChannel(dc, isSender) {
       return;
     }
 
-    if (!isSender || !s.files.length) return;
-
-    // 首个文件的元信息在通道一打开就发，接收端据此弹出接收确认
-    const file = s.files[0];
-    dc.send(
-      JSON.stringify({
-        t: 'meta',
-        name: file.name,
-        size: file.size,
-        type: file.type || 'application/octet-stream',
-        index: 0,
-        total: s.files.length,
-        totalBytes: s.totalSize,
-      }),
-    );
-
-    // 趁用户还在看确认框，先把开头读进内存（手机首次读盘最慢）
-    s.warmPromise = prefetch(file, CHUNK_LIMIT, PREFETCH_BYTES);
+    // 通道打开后，如果已经有文件就直接开传；没有就等用户选
+    if (isSender && s.files.length) {
+      beginSending();
+    }
   };
 
   dc.onmessage = (ev) => {
@@ -688,8 +674,8 @@ async function beginSending() {
     for (let i = 0; i < s.files.length; i += 1) {
       const file = s.files[i];
 
-      // 第一个文件的 meta 在 dc.onopen 里已经发过了
-      if (i > 0) {
+      // 文件可能是连上之后才选的，所有 meta 都在这里发
+      {
         dc.send(
           JSON.stringify({
             t: 'meta',
@@ -1408,10 +1394,37 @@ function startReceive(code) {
   const fromLink = (new URLSearchParams(location.search).get('c') || '').trim().toUpperCase();
   if (!/^[2-9A-HJ-NP-Z]{6}$/.test(fromLink)) return;
   $('code').value = fromLink;
+  window.__skipBoot = true;
   history.replaceState(null, '', location.pathname);
   toast(`通过链接加入：${fromLink}`);
   startReceive(fromLink);
 })();
+
+/** 打开页面就建房：先给码，文件可以等会儿再选 */
+async function boot() {
+  // 从分享链接进来时，startReceive 已经接管，别再建一个自己的房间
+  if (window.__skipBoot) return;
+  resetAll();
+  s.role = 'sender';
+
+  $('wait-hint').textContent = '把取件码发给对方';
+  $('room-code').textContent = '······';
+  $('wait-sub').textContent = '正在创建房间…';
+  $('copy').hidden = true;
+  show('wait');
+
+  try {
+    s.code = await createRoom();
+  } catch {
+    show('start'); // 建房失败就退回选择页，功能不受影响
+    return;
+  }
+
+  $('room-code').textContent = s.code;
+  $('copy').hidden = false;
+  $('wait-sub').textContent = '等待对方输入取件码…';
+  connect('sender');
+}
 
 $('file').addEventListener('change', (ev) => {
   const files = ev.target.files;
@@ -1444,6 +1457,23 @@ $('copy-link').addEventListener('click', async () => {
   } catch {
     toast('复制失败，请手动选中');
   }
+});
+
+$('file-wait').addEventListener('change', (ev) => {
+  const files = [...ev.target.files].filter((f) => f.size > 0);
+  ev.target.value = '';
+  if (!files.length) return;
+
+  s.files = files;
+  s.count = files.length;
+  s.totalSize = files.reduce((n, f) => n + f.size, 0);
+
+  const label = $('wait-files');
+  label.hidden = false;
+  label.textContent = `已选 ${files.length} 个文件 · ${fmtBytes(s.totalSize)}，对方进来就开始传`;
+
+  // 如果对方已经在房间里、通道也开着，立刻开传
+  if (s.dc && s.dc.readyState === 'open') beginSending();
 });
 
 $('join').addEventListener('submit', (ev) => {
@@ -1693,6 +1723,8 @@ $('retry').addEventListener('click', () => {
 
   connect(role);
 });
+
+boot();
 
 window.addEventListener('beforeunload', () => {
   try {

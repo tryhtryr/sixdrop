@@ -59,6 +59,8 @@ try {
   await sender.goto(base);
   await receiver.goto(base);
 
+  // 切片 1 之后页面直接进等待页，文本标签还在选择页上
+  await sender.click('#cancel');
   await sender.click('#tab-text');
   await sender.waitForSelector('#panel-text:not([hidden])', { timeout: 5000 });
   await sender.click('#text-start');
