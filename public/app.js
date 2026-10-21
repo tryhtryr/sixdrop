@@ -1466,7 +1466,15 @@ function autoGrowChatInput() {
 
 $('chat-input').addEventListener('input', autoGrowChatInput);
 
+// 触屏设备没有 Shift 键，回车应该老老实实换行；发送交给按钮
+const TOUCH = window.matchMedia('(pointer: coarse)').matches;
+
+$('chat-input').placeholder = TOUCH
+  ? '输入消息，可换行，点右侧发送'
+  : '输入消息，回车发送，Shift+回车换行';
+
 $('chat-input').addEventListener('keydown', (ev) => {
+  if (TOUCH) return; // 手机：回车即换行
   if (ev.key !== 'Enter' || ev.shiftKey) return;
   // 中文输入法正在组字时，回车是「上屏」不是「发送」
   if (ev.isComposing || ev.keyCode === 229) return;
