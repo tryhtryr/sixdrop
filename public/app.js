@@ -98,9 +98,14 @@ function toast(text) {
 
 function progress(done, total) {
   const pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
-  $('bar').style.width = `${pct.toFixed(2)}%`;
-
   const now = performance.now();
+
+  // 每块都写 DOM 会把主线程吃满，节流到 10 次/秒
+  const due = now - (s.lastDomAt || 0) >= 100 || pct >= 100;
+  if (due) {
+    s.lastDomAt = now;
+    $('bar').style.width = `${pct.toFixed(2)}%`;
+  }
   if (!s.speedAt) {
     s.speedAt = now;
     s.speedBase = done;
@@ -110,6 +115,7 @@ function progress(done, total) {
     s.speedBase = done;
   }
 
+  if (!due) return;
   const speed = s.rate > 0 ? `${fmtBytes(s.rate)}/s` : '—';
   $('xfer-stats').textContent = `${fmtBytes(done)} / ${fmtBytes(total)} · ${speed} · ${pct.toFixed(0)}%`;
 }
@@ -669,6 +675,10 @@ async function beginSending() {
   const maxMessage = s.pc?.sctp?.maxMessageSize || 64 * 1024;
   const chunkSize = Math.max(16 * 1024, Math.min(CHUNK_LIMIT, maxMessage));
 
+  // Chrome 的 bufferedAmountLowThreshold 默认是 0，只会在缓冲彻底排空时触发；
+  // 设成一半，发送端就能在管道没空之前补货。
+  dc.bufferedAmountLowThreshold = Math.floor(HIGH_WATER / 2);
+
   try {
     for (let i = 0; i < s.files.length; i += 1) {
       const file = s.files[i];
@@ -705,7 +715,7 @@ async function beginSending() {
         if (s.done) return;
         await waitForDrain(dc);
         const buf = await file.slice(offset, offset + chunkSize).arrayBuffer();
-        dc.send(buf);
+        await sendChunk(dc, buf);
         offset += buf.byteLength;
         s.sentBytes += buf.byteLength;
         progress(offset, file.size);
@@ -734,6 +744,19 @@ function waitAccept() {
   });
 }
 
+/** 队列满时等一拍再重试，别让一次抖动把整个传输打死 */
+async function sendChunk(dc, buf) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      dc.send(buf);
+      return;
+    } catch (err) {
+      if (!/queue is full/i.test(err?.message || '') || attempt > 40) throw err;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+}
+
 function waitForDrain(dc) {
   if (dc.bufferedAmount < HIGH_WATER) return Promise.resolve();
   return new Promise((resolve) => {
@@ -742,7 +765,7 @@ function waitForDrain(dc) {
       dc.removeEventListener('bufferedamountlow', done);
       resolve();
     };
-    const timer = setTimeout(done, 120);
+    const timer = setTimeout(done, 500);
     dc.addEventListener('bufferedamountlow', done);
   });
 }

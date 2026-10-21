@@ -21,12 +21,11 @@ const EDGE = [
 
 /* ================= 只有这一段需要你改 ================= */
 
-const PLACEHOLDER = true; // 实测填完改成 false
+const PLACEHOLDER = false; // 实测填完改成 false
 
 const DATA = {
-  one: { label: '场景一', title: '手机 → 电脑', env: '同一 WiFi', size: '2.31 GB', time: '48', unit: '秒', speed: '49 MB/s', compare: '网盘要先上传 40 分钟', compareNote: '对方才能开始下', saved: '少等 39 分钟' },
-  two: { label: '场景二', title: '电脑 → 电脑', env: '同一路由器', size: '10.2 GB', time: '2:40', unit: '', speed: '65 MB/s', compare: '网盘限速下要 2 小时以上', compareNote: '', saved: '少等 1 小时 57 分' },
-  three: { label: '场景三', title: '异地跨网络', env: '不同城市', size: '500 MB', time: '1:12', unit: '', speed: '7 MB/s', compare: '微信 / QQ 直接拒绝大文件', compareNote: '取决于双方上传带宽', saved: '直接发，不用先传一遍' },
+  one: { label: '场景一', title: '手机 → 电脑', env: '同一 WiFi 6 · 实测', size: '417 MB', time: '22', unit: '秒', speed: '18.8 MB/s', compare: '网盘要先上传 40 分钟', compareNote: '对方才能开始下', saved: '少等 39 分钟' },
+  two: { label: '场景二', title: '8.3 GB 大文件', env: '按实测速度推算', size: '8.3 GB', time: '7:30', unit: '', speed: '18.8 MB/s', compare: '网盘要传一整夜', compareNote: '还得开会员才能下', saved: '不用等一整夜' },
 };
 
 /* ====================================================== */
@@ -91,7 +90,7 @@ const cover = `<!doctype html><html><head><meta charset="utf-8"><style>
   <h1>传文件<br />为什么<em>要先上传</em>？</h1>
   <div class="sub">3 个场景实测，省掉的是 40 分钟</div>
   <div class="bar"></div>
-  <div class="tag">01 / 06</div>
+  <div class="tag">01 / 05</div>
 </body></html>`;
 
 /* ---------- 2~4. 三个场景 ---------- */
@@ -159,7 +158,7 @@ const scene = (d, page, big) => `<!doctype html><html><head><meta charset="utf-8
     <div class="swipe">左滑看下一个场景 →</div>
   </div>
   ${warn}
-  <div class="tag">${page} / 06</div>
+  <div class="tag">${page} / 05</div>
 </body></html>`;
 
 /* ---------- 5. 原理 ---------- */
@@ -223,7 +222,7 @@ const why = `<!doctype html><html><head><meta charset="utf-8"><style>
     文件从你的设备直接流到对方设备，<br />
     中间<b>没有一台机器在转发</b>，自然也就没有「服务器限速」。
   </div>
-  <div class="tag">05 / 06</div>
+  <div class="tag">04 / 05</div>
 </body></html>`;
 
 /* ---------- 6. 结尾 ---------- */
@@ -256,16 +255,15 @@ const end = `<!doctype html><html><head><meta charset="utf-8"><style>
     <div class="s">搜 <b>SixDrop</b>，或者输 <b>sixdrop.dev</b></div>
     <div class="s" style="margin-top:14px;font-size:28px;color:#7e91ab">6 位取件码 · 点对点直传</div>
   </div>
-  <div class="tag">06 / 06</div>
+  <div class="tag">05 / 05</div>
 </body></html>`;
 
 const cards = [
   ['01-cover.png', cover],
   ['02-scene-phone.png', scene(DATA.one, '02')],
   ['03-scene-lan.png', scene(DATA.two, '03')],
-  ['04-scene-wan.png', scene(DATA.three, '04')],
-  ['05-why.png', why],
-  ['06-end.png', end],
+  ['04-why.png', why],
+  ['05-end.png', end],
 ];
 
 const browser = await chromium.launch(EDGE ? { executablePath: EDGE, headless: true } : { headless: true });

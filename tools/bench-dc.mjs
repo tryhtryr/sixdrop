@@ -58,6 +58,9 @@ const result = await page.evaluate(
       dc.onopen = r;
     });
 
+    // 和水位实验一致：设低水位阈值，避免每次都等缓冲区彻底排空
+    dc.bufferedAmountLowThreshold = Math.floor(4 * 1024 * 1024);
+
     const buf = new Uint8Array(CHUNK);
     const total = MB * 1024 * 1024;
     const started = performance.now();
@@ -70,6 +73,10 @@ const result = await page.evaluate(
             r();
           };
           dc.addEventListener('bufferedamountlow', h);
+          setTimeout(() => {
+            dc.removeEventListener('bufferedamountlow', h);
+            r();
+          }, 500);
         });
       }
       dc.send(buf);
