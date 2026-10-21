@@ -84,8 +84,10 @@ async function newRoom() {
 
 const claim = (room) => room.fetch({ url: 'https://room.internal/claim', method: 'POST' });
 
-async function open(room, role) {
-  const res = await room.fetch({ url: `https://room.internal/ws?role=${role}`, method: 'GET' });
+async function open(room, role, extra = {}) {
+  const qs = new URLSearchParams({ role });
+  for (const [k, v] of Object.entries(extra)) qs.set(k, v);
+  const res = await room.fetch({ url: `https://room.internal/ws?${qs}`, method: 'GET' });
   // 服务端那一半才会收到 DO 的 send()
   const server = room.ctx.sockets[room.ctx.sockets.length - 1];
   return { status: res.status, server, client: res.webSocket };
@@ -124,19 +126,40 @@ await test('两人进入后互相知道对方在线', async () => {
 
   const sender = await open(room, 'sender');
   assert.equal(sender.status, 101);
-  assert.deepEqual(sender.server.sent[0], { t: 'joined', role: 'sender' });
+  assert.deepEqual(sender.server.sent[0], { t: 'joined', role: 'sender', admitted: true });
   assert.deepEqual(sender.server.sent.at(-1), { t: 'peers', n: 1 });
 
   const receiver = await open(room, 'receiver');
+  assert.deepEqual(receiver.server.sent[0], { t: 'joined', role: 'receiver', admitted: true });
   assert.deepEqual(sender.server.sent.at(-1), { t: 'peers', n: 2 });
   assert.ok(sender.server.sent.some((m) => m.t === 'peer-joined' && m.role === 'receiver'));
   assert.deepEqual(receiver.server.sent.at(-1), { t: 'peers', n: 2 });
+});
+
+await test('同网发现进来的访客要房主审批', async () => {
+  const { room } = await newRoom();
+  const sender = await open(room, 'sender');
+  const guest = await open(room, 'receiver', { via: 'discover' });
+
+  assert.equal(guest.server.sent[0].admitted, false, '发现进来的默认未准入');
+  assert.ok(sender.server.sent.some((m) => m.t === 'knock'), '房主应收到敲门通知');
+  assert.deepEqual(sender.server.sent.at(-1), { t: 'peers', n: 1 }, '未准入不计入在线数');
+
+  // 未准入时发别的消息一律丢弃
+  guest.server.clear();
+  await room.webSocketMessage(guest.server, JSON.stringify({ t: 'answer', sdp: 'x' }));
+  assert.equal(sender.server.sent.filter((m) => m.t === 'answer').length, 0);
+
+  await room.webSocketMessage(sender.server, JSON.stringify({ t: 'admit' }));
+  assert.ok(guest.server.sent.some((m) => m.t === 'admit'));
+  assert.deepEqual(sender.server.sent.at(-1), { t: 'peers', n: 2 });
 });
 
 await test('信令只转发给对方，且身份由服务端标注', async () => {
   const { room } = await newRoom();
   const sender = await open(room, 'sender');
   const receiver = await open(room, 'receiver');
+  await room.webSocketMessage(sender.server, JSON.stringify({ t: 'admit' }));
 
   sender.server.clear();
   receiver.server.clear();
@@ -170,6 +193,7 @@ await test('同角色重连：旧的静默顶替，不打扰对端', async () =>
   const { room } = await newRoom();
   const oldSender = await open(room, 'sender');
   const receiver = await open(room, 'receiver');
+  await room.webSocketMessage(oldSender.server, JSON.stringify({ t: 'admit' }));
   receiver.server.clear();
 
   const newSender = await open(room, 'sender');

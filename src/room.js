@@ -16,6 +16,9 @@ const ALLOWED = new Set([
   // 打洞失败时的文字兜底：消息经房间转发，不落盘
   'text',
   'text-relay',
+  'knock',
+  'admit',
+  'reject',
   'fail',
 ]);
 
@@ -71,14 +74,20 @@ export class Room {
     const others = current.filter((ws) => ws !== sameRole);
     if (others.length >= 2) return new Response('room full', { status: 409 });
 
+    const device = (url.searchParams.get('device') || '').slice(0, 40);
+
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
     // 用 Hibernation：空闲房间不计时长费用
     this.ctx.acceptWebSocket(server);
-    server.serializeAttachment({ role });
+    // 建房者直接准入；同网发现（via=discover）进来的要房主点「同意」，
+    // 手输取件码进来的直接准入——6 位码本身就是凭证
+    const viaDiscover = url.searchParams.get('via') === 'discover';
+    const admitted = role === 'sender' || !viaDiscover;
+    server.serializeAttachment({ role, admitted, device });
 
-    server.send(JSON.stringify({ t: 'joined', role }));
+    server.send(JSON.stringify({ t: 'joined', role, admitted }));
 
     // 已经在线的一方收到通知，由发送方决定（重新）发 offer
     for (const peer of others) {
@@ -89,9 +98,27 @@ export class Room {
       }
     }
 
-    this.broadcast({ t: 'peers', n: others.length + 1 });
+    if (!admitted) {
+      const owner = others.find((w) => w.deserializeAttachment()?.role === 'sender');
+      try {
+        owner?.send(JSON.stringify({ t: 'knock', device: device || '未知设备' }));
+      } catch {
+        /* 忽略 */
+      }
+    }
+
+    this.broadcastPeers();
 
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /** 已准入的连接数（访客未审批时不计数） */
+  admittedCount() {
+    return this.ctx.getWebSockets().filter((w) => w.deserializeAttachment()?.admitted).length;
+  }
+
+  broadcastPeers() {
+    this.broadcast({ t: 'peers', n: this.admittedCount() });
   }
 
   broadcast(msg) {
@@ -116,8 +143,40 @@ export class Room {
     }
     if (!ALLOWED.has(msg.t)) return;
 
-    // 角色由服务端判定，不信任客户端自称的身份
-    const from = ws.deserializeAttachment()?.role;
+    const att = ws.deserializeAttachment() || {};
+    const from = att.role;
+
+    // 审批：只有房主能放行
+    if (msg.t === 'admit' || msg.t === 'reject') {
+      if (from !== 'sender') return;
+      const guest = this.ctx.getWebSockets().find((w) => w !== ws && w.deserializeAttachment()?.role === 'receiver');
+      if (!guest) return;
+      const gatt = guest.deserializeAttachment() || {};
+
+      if (msg.t === 'admit') {
+        guest.serializeAttachment({ ...gatt, admitted: true });
+        try {
+          guest.send(JSON.stringify({ t: 'admit' }));
+          ws.send(JSON.stringify({ t: 'peer-joined', role: 'receiver', device: gatt.device || '' }));
+        } catch {
+          /* 忽略 */
+        }
+      } else {
+        try {
+          guest.send(JSON.stringify({ t: 'reject', message: msg.message || '房主拒绝了这次加入' }));
+          guest.close(4003, 'rejected');
+        } catch {
+          /* 忽略 */
+        }
+      }
+
+      this.broadcastPeers();
+      return;
+    }
+
+    // 没被准入的访客，只能敲门
+    if (!att.admitted && msg.t !== 'knock') return;
+
     const payload = JSON.stringify({ ...msg, from });
 
     for (const peer of this.ctx.getWebSockets()) {
