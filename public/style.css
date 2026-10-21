@@ -468,3 +468,65 @@ button.link {
   padding: 10px 16px;
   font-size: 13px;
 }
+
+
+/* ---------- 房间 ---------- */
+.room-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.room-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f0b429;
+  flex: 0 0 auto;
+  transition: background .2s;
+}
+
+.room-state { font-size: 13px; color: var(--muted); }
+
+.room-code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 15px;
+  letter-spacing: .16em;
+  color: #9fb0c8;
+  margin-left: 4px;
+}
+
+.room-head button.link { font-size: 13px; }
+.room-head button.link:last-child { margin-left: auto; }
+
+.room-join { margin-top: 14px; }
+.room-join input { letter-spacing: normal; text-transform: none; }
+
+.badge {
+  font-style: normal;
+  display: inline-block;
+  margin-left: 6px;
+  min-width: 17px;
+  height: 17px;
+  line-height: 17px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+#file-server {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px 18px;
+  border: 1px dashed #4a3a2a;
+  border-radius: 12px;
+  background: #1a1510;
+}
+
+#file-server .row { display: flex; gap: 10px; }

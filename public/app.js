@@ -130,8 +130,71 @@ function overallLine(doneBytes, totalBytes, index) {
   $('xfer-sub').textContent = `第 ${at}/${s.count} 个 · 总计 ${pct}%`;
 }
 
+/* ---------------- 房间 ---------------- */
+
+const ROOM_STATE = {
+  waiting: { text: '等待对方', color: '#f0b429' },
+  connecting: { text: '正在建立直连…', color: '#5b95ff' },
+  p2p: { text: '已直连', color: '#4ade80' },
+  server: { text: '直连失败 · 已切服务器', color: '#f97316' },
+};
+
+function setRoomState(state) {
+  const conf = ROOM_STATE[state] || ROOM_STATE.waiting;
+  s.roomState = state;
+  const dot = $('link-dot');
+  const label = $('link-state');
+  if (dot) dot.style.background = conf.color;
+  if (label) label.textContent = conf.text;
+}
+
+function filePanel(state) {
+  $('file-idle').hidden = state !== 'idle';
+  $('file-ask').hidden = state !== 'ask';
+  $('file-progress').hidden = state !== 'progress';
+  $('file-server').hidden = state !== 'server';
+}
+
+function roomTab(name) {
+  const text = name === 'text';
+  $('room-tab-file').classList.toggle('is-active', !text);
+  $('room-tab-text').classList.toggle('is-active', text);
+  $('room-tab-file').setAttribute('aria-selected', String(!text));
+  $('room-tab-text').setAttribute('aria-selected', String(text));
+  $('panel-file').hidden = text;
+  $('panel-text').hidden = !text;
+  if (text) {
+    clearBadge();
+    setTimeout(() => $('chat-input').focus(), 60);
+  }
+}
+
+let badgeCount = 0;
+function bumpBadge() {
+  if (!$('panel-text').hidden) return;
+  badgeCount += 1;
+  const el = $('chat-badge');
+  el.textContent = badgeCount > 9 ? '9+' : String(badgeCount);
+  el.hidden = false;
+}
+
+function clearBadge() {
+  badgeCount = 0;
+  $('chat-badge').hidden = true;
+  $('chat-badge').textContent = '';
+}
+
 function fail(title, text) {
   if (!$('view-error').hidden) return;
+
+  if (s.code && s.ws && s.ws.readyState === WebSocket.OPEN) {
+    clearTimeout(s.connectTimer);
+    clearTimeout(s.joinTimer);
+    closePeer();
+    setRoomState('server');
+    toast(`${title} · 已切到服务器模式`);
+    return;
+  }
 
   // 文本模式下打洞失败不等于聊不了：信令还通，就把文字改成经服务器转发
   if (s.mode === 'text' && s.ws && s.ws.readyState === WebSocket.OPEN) {
@@ -269,11 +332,9 @@ async function onSignal(msg) {
 
     case 'peers':
       s.peerUp = msg.n >= 2;
-      if (s.role === 'sender') {
-        $('wait-sub').textContent = s.peerUp ? '对方已进入，正在建立直连…' : '等待对方输入取件码…';
-        if (s.peerUp && !s.offerSent) startOffer();
-      } else {
-        $('wait-sub').textContent = s.peerUp ? '正在建立直连…' : '正在寻找发送方…';
+      if (s.peerUp) {
+        if (s.roomState !== 'p2p' && s.roomState !== 'server') setRoomState('connecting');
+        if (s.role === 'sender' && !s.offerSent) startOffer();
       }
       break;
 
@@ -332,9 +393,12 @@ async function onSignal(msg) {
         s.accepted = false;
         s.acceptResolver?.(false);
         s.acceptResolver = null;
-        toast('对方拒绝了这次传输');
-        resetAll();
-        show('start');
+        // 拒绝的只是这一批文件，房间要留着
+        s.sending = false;
+        s.busy = false;
+        s.done = true;
+        toast('对方拒绝了这批文件，房间还在');
+        filePanel('idle');
       }
       break;
 
@@ -393,9 +457,8 @@ async function startOffer() {
 
   try {
     closePeer();
-    show('wait');
-    $('wait-sub').textContent = '正在建立直连…';
-
+    show('room');
+  
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     s.pc = pc;
     watch(pc);
@@ -418,8 +481,7 @@ async function startOffer() {
 async function onOffer(sdp) {
   closePeer();
   s.done = false;
-  show('wait');
-  $('wait-sub').textContent = '正在建立直连…';
+  show('room');
 
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   s.pc = pc;
@@ -511,6 +573,8 @@ function wireChannel(dc, isSender) {
   dc.bufferedAmountLowThreshold = LOW_WATER;
 
   dc.onopen = () => {
+    setRoomState('p2p');
+    startKeepalive();
     // 通道一开就握手：告诉对方这是文件模式还是纯文字模式
     if (isSender) {
       dc.send(JSON.stringify({ t: 'hello', mode: s.mode }));
@@ -564,10 +628,9 @@ function wireChannel(dc, isSender) {
 /* ---------------- 纯文本消息 ---------------- */
 
 function showChat(title) {
-  if (title) $('chat-title').textContent = title;
-  show('chat');
-  startKeepalive();
-  setTimeout(() => $('chat-input').focus(), 60);
+  if (title) $('chat-note').textContent = title;
+  show('room');
+  roomTab('text');
 }
 
 /** 直连打不通时的文字兜底：消息走房间信令，不落盘、不存历史 */
@@ -578,9 +641,9 @@ function startTextFallback(reason) {
   keepAwakeOff();
   closePeer();
 
-  $('chat-title').textContent = '文本 · 经服务器转发';
   $('chat-note').textContent = `直连没打通（${reason || '网络受限'}），文字改由服务器转发。仅在本次会话内转发，不保存。`;
-  show('chat');
+  show('room');
+  roomTab('text');
   sendSignal({ t: 'text-relay' });
   setTimeout(() => $('chat-input').focus(), 60);
 }
@@ -609,24 +672,20 @@ function appendChat(body, mine) {
   $('chat-list').scrollTop = $('chat-list').scrollHeight;
 }
 
-function startTextChat() {
+/* 文本已经在房间内，不再单独建房 */
+function __unusedStartTextChat() {
   resetAll();
   s.mode = 'text';
   s.role = 'sender';
 
-  show('wait');
-  $('wait-hint').textContent = '把取件码发给对方';
+  show('room');
   $('room-code').textContent = '······';
-  $('wait-sub').textContent = '正在创建房间…';
-  $('copy').hidden = true;
 
   createRoom()
     .then((code) => {
       s.code = code;
       $('room-code').textContent = code;
-      $('copy').hidden = false;
-      $('wait-sub').textContent = '等待对方输入取件码…';
-      connect('sender');
+              connect('sender');
     })
     .catch((err) => fail('创建房间失败', err?.message || String(err)));
 }
@@ -657,7 +716,7 @@ async function beginSending() {
   s.totalSize = s.files.reduce((n, f) => n + f.size, 0);
   s.sentBytes = 0;
 
-  show('xfer');
+  filePanel('progress');
   await keepAwake();
   startKeepalive();
 
@@ -733,11 +792,17 @@ async function beginSending() {
     }
 
     s.done = true;
+    s.sending = false;
     $('xfer-sub').textContent = s.files.length > 1 ? '全部发送完成' : '发送完成';
-    $('back').hidden = false;
-    stopKeepalive();
+    s.busy = false;
     keepAwakeOff();
+    toast(s.files.length > 1 ? `${s.files.length} 个文件已发出` : '文件已发出');
+    setTimeout(() => {
+      if (s.done) filePanel('idle');
+    }, 900);
   } catch (err) {
+    s.sending = false;
+    s.busy = false;
     fail('发送失败', err?.message || String(err));
   }
 }
@@ -816,7 +881,8 @@ function askToReceive(meta) {
 
   $('ask-name').textContent = meta.name;
   $('ask-size').textContent = sizeLine + note;
-  show('ask');
+  roomTab('file');
+  filePanel('ask');
 }
 
 /** 为第 index 个文件开一条写入通道 */
@@ -922,10 +988,11 @@ async function finishReceive() {
   s.done = true;
 
   await closeCurrent();
-  $('xfer-sub').textContent = s.totalSize && s.count > 1 ? '全部接收完成' : '已保存';
-  $('back').hidden = false;
-  stopKeepalive();
   keepAwakeOff();
+  toast(s.totalSize && s.count > 1 ? '全部接收完成' : '文件已保存');
+  setTimeout(() => {
+    if (s.done) filePanel('idle');
+  }, 900);
 }
 
 /* ---------------- 中转兜底（打洞失败时） ---------------- */
@@ -1259,7 +1326,6 @@ function resetAll() {
   $('xfer-sub').textContent = '';
   $('xfer-name').textContent = '—';
   $('verify').hidden = true;
-  $('back').hidden = true;
   $('relay-delete').hidden = true;
   $('relay-delete').disabled = false;
   $('relay-retry').hidden = true;
@@ -1268,9 +1334,7 @@ function resetAll() {
   $('chat-input').value = '';
   $('chat-input').style.height = 'auto';
   $('chat-note').textContent = '消息走 P2P 直连，不经过服务器。关掉页面就没了。';
-  $('chat-title').textContent = '点对点消息';
   $('room-code').textContent = '------';
-  $('wait-sub').textContent = '等待对方输入取件码…';
 }
 
 async function keepAwake() {
@@ -1341,6 +1405,33 @@ function fingerprint(sdp) {
 
 /* ---------------- 入口 ---------------- */
 
+/** 把文件加进当前房间：没连上就先存着，连上自动开传 */
+function addFiles(fileList) {
+  const files = [...(fileList || [])].filter((f) => f.size > 0);
+  if (!files.length) {
+    if (fileList && fileList.length) toast('空文件没有传输的必要');
+    return;
+  }
+  if (s.busy) {
+    toast('上一批还在传，等它结束');
+    return;
+  }
+
+  s.files = files;
+  s.count = files.length;
+  s.totalSize = files.reduce((n, f) => n + f.size, 0);
+
+  if (s.roomState === 'server') {
+    toast('现在是服务器模式，点「上传并生成链接」');
+    return;
+  }
+  if (s.dc && s.dc.readyState === 'open') {
+    beginSending();
+    return;
+  }
+  toast(`已选 ${files.length} 个文件，对方进房后自动开传`);
+}
+
 async function startSend(fileList) {
   const files = [...(fileList || [])].filter((f) => f.size > 0);
   if (!files.length) {
@@ -1354,12 +1445,7 @@ async function startSend(fileList) {
   s.totalSize = files.reduce((n, f) => n + f.size, 0);
   s.role = 'sender';
 
-  $('wait-hint').textContent = '把取件码发给对方';
   $('room-code').textContent = '······';
-  $('wait-sub').textContent =
-    files.length > 1 ? `已选 ${files.length} 个文件 · 正在创建房间…` : '正在创建房间…';
-  $('copy').hidden = true;
-  show('wait');
 
   try {
     s.code = await createRoom();
@@ -1369,10 +1455,6 @@ async function startSend(fileList) {
   }
 
   $('room-code').textContent = s.code;
-  $('copy').hidden = false;
-  $('wait-sub').textContent =
-    files.length > 1 ? `已选 ${files.length} 个文件 · 等待对方输入取件码…` : '等待对方输入取件码…';
-  connect('sender');
 }
 
 function startReceive(code) {
@@ -1380,11 +1462,11 @@ function startReceive(code) {
   s.role = 'receiver';
   s.code = code;
 
-  $('wait-hint').textContent = '正在连接发送方';
+  show('room');
+  filePanel('idle');
+  roomTab('file');
   $('room-code').textContent = code;
-  $('copy').hidden = true;
-  $('wait-sub').textContent = '正在寻找发送方…';
-  show('wait');
+  setRoomState('connecting');
 
   connect('receiver');
 }
@@ -1407,28 +1489,27 @@ async function boot() {
   resetAll();
   s.role = 'sender';
 
-  $('wait-hint').textContent = '把取件码发给对方';
+  show('room');
+  filePanel('idle');
+  roomTab('file');
+  setRoomState('waiting');
   $('room-code').textContent = '······';
-  $('wait-sub').textContent = '正在创建房间…';
-  $('copy').hidden = true;
-  show('wait');
 
   try {
     s.code = await createRoom();
   } catch {
-    show('start'); // 建房失败就退回选择页，功能不受影响
+    show('error');
+    $('error-title').textContent = '创建房间失败';
+    $('error-text').textContent = '服务器忙，请刷新重试';
     return;
   }
 
   $('room-code').textContent = s.code;
-  $('copy').hidden = false;
-  $('wait-sub').textContent = '等待对方输入取件码…';
   connect('sender');
 }
 
 $('file').addEventListener('change', (ev) => {
-  const files = ev.target.files;
-  startSend(files);
+  addFiles(ev.target.files);
   ev.target.value = '';
 });
 
@@ -1441,7 +1522,7 @@ drop.addEventListener('dragleave', () => drop.classList.remove('over'));
 drop.addEventListener('drop', (ev) => {
   ev.preventDefault();
   drop.classList.remove('over');
-  startSend(ev.dataTransfer?.files);
+  addFiles(ev.dataTransfer?.files);
 });
 
 /** 分享链接：对方点开就自动填码加入 */
@@ -1459,23 +1540,6 @@ $('copy-link').addEventListener('click', async () => {
   }
 });
 
-$('file-wait').addEventListener('change', (ev) => {
-  const files = [...ev.target.files].filter((f) => f.size > 0);
-  ev.target.value = '';
-  if (!files.length) return;
-
-  s.files = files;
-  s.count = files.length;
-  s.totalSize = files.reduce((n, f) => n + f.size, 0);
-
-  const label = $('wait-files');
-  label.hidden = false;
-  label.textContent = `已选 ${files.length} 个文件 · ${fmtBytes(s.totalSize)}，对方进来就开始传`;
-
-  // 如果对方已经在房间里、通道也开着，立刻开传
-  if (s.dc && s.dc.readyState === 'open') beginSending();
-});
-
 $('join').addEventListener('submit', (ev) => {
   ev.preventDefault();
   const code = $('code').value.trim().toUpperCase();
@@ -1484,15 +1548,6 @@ $('join').addEventListener('submit', (ev) => {
     return;
   }
   startReceive(code);
-});
-
-$('copy').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(s.code || '');
-    toast('已复制');
-  } catch {
-    toast('复制失败，请手动选中');
-  }
 });
 
 $('accept').addEventListener('click', async () => {
@@ -1528,7 +1583,7 @@ $('accept').addEventListener('click', async () => {
   sendSignal({ t: 'accept' });
 
   s.current = { meta: s.meta, received: 0, closed: false, sink: null };
-  show('xfer');
+  filePanel('progress');
   await keepAwake();
   startKeepalive();
   updateHeader(s.meta);
@@ -1536,23 +1591,8 @@ $('accept').addEventListener('click', async () => {
 
 $('decline').addEventListener('click', () => {
   sendSignal({ t: 'decline' });
-  resetAll();
-  show('start');
-});
-
-$('cancel').addEventListener('click', () => {
-  resetAll();
-  show('start');
-});
-
-$('home').addEventListener('click', () => {
-  resetAll();
-  show('start');
-});
-
-$('back').addEventListener('click', () => {
-  resetAll();
-  show('start');
+  filePanel('idle');
+  toast('已拒绝，房间还在，可以继续聊或发别的');
 });
 
 function selectTab(name) {
@@ -1565,11 +1605,25 @@ function selectTab(name) {
   $('panel-text').hidden = name !== 'text';
 }
 
-$('tab-file').addEventListener('click', () => selectTab('file'));
-$('tab-text').addEventListener('click', () => selectTab('text'));
+$('room-tab-file').addEventListener('click', () => roomTab('file'));
+$('room-tab-text').addEventListener('click', () => roomTab('text'));
 
-$('text-start').addEventListener('click', () => {
-  startTextChat();
+$('room-leave').addEventListener('click', () => {
+  sendSignal({ t: 'bye' });
+  boot();
+});
+
+$('room-relay').addEventListener('click', () => {
+  if (s.files.length) startRelay();
+  else toast('先在文件面板选好要传的文件');
+});
+
+$('room-retry').addEventListener('click', () => {
+  s.offerSent = false;
+  s.done = false;
+  setRoomState('connecting');
+  if (s.role === 'sender') startOffer();
+  else if (s.code) connect('receiver');
 });
 
 /** 多行输入框跟着内容长高，最多 132px 后内部滚动 */
@@ -1612,11 +1666,6 @@ $('chat-form').addEventListener('submit', (ev) => {
   autoGrowChatInput();
 });
 
-$('chat-back').addEventListener('click', () => {
-  resetAll();
-  show('start');
-});
-
 $('use-relay').addEventListener('click', () => {
   if (s.role === 'sender') startRelay();
   else requestRelay();
@@ -1624,7 +1673,7 @@ $('use-relay').addEventListener('click', () => {
 
 $('relay-back').addEventListener('click', () => {
   resetAll();
-  show('start');
+  boot();
 });
 
 $('relay-download').addEventListener('click', () => {
@@ -1716,10 +1765,8 @@ $('retry').addEventListener('click', () => {
   s.count = s.files.length;
   s.totalSize = s.files.reduce((n, f) => n + f.size, 0);
 
-  show('wait');
+  show('room');
   $('room-code').textContent = code;
-  $('wait-hint').textContent = role === 'sender' ? '把取件码发给对方' : '正在连接发送方';
-  $('wait-sub').textContent = role === 'sender' ? '等待对方…' : '等待对方重新发起…';
 
   connect(role);
 });

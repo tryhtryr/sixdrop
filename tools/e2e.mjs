@@ -149,7 +149,7 @@ async function main() {
 
     await receiver.fill('#code', code);
     await receiver.press('#code', 'Enter');
-    await receiver.waitForSelector('#view-ask:not([hidden])', { timeout: 30000 });
+    await receiver.waitForSelector('#file-ask:not([hidden])', { timeout: 30000 });
 
     assert.equal(await receiver.locator('#ask-name').textContent(), FILES[0].name);
     if (FILES.length > 1) {
@@ -162,7 +162,11 @@ async function main() {
 
     const startedAt = Date.now();
     await receiver.click('#accept');
-    await receiver.waitForSelector('#back:not([hidden])', { timeout: 120000 });
+    await receiver.waitForFunction(
+      (n) => window.__blobs.length >= n,
+      FILES.length,
+      { timeout: 120000 },
+    );
     const seconds = (Date.now() - startedAt) / 1000;
     step(`接收完成 · ${seconds.toFixed(2)}s · ${(totalBytes / 1024 / 1024 / seconds).toFixed(1)} MB/s`);
 

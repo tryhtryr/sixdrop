@@ -59,9 +59,6 @@ try {
   await sender.goto(base);
   await receiver.goto(base);
 
-  // 切片 1 之后页面直接进等待页，文本标签还在选择页上
-  await sender.click('#cancel');
-  await sender.click('#tab-text');
   await sender.waitForSelector('#panel-text:not([hidden])', { timeout: 5000 });
   await sender.click('#text-start');
   await sender.waitForFunction(
@@ -75,8 +72,14 @@ try {
   await receiver.fill('#code', code);
   await receiver.press('#code', 'Enter');
 
-  await sender.waitForSelector('#view-chat:not([hidden])', { timeout: 30000 });
-  await receiver.waitForSelector('#view-chat:not([hidden])', { timeout: 30000 });
+  await sender.waitForFunction(
+    () => document.getElementById('link-state').textContent.includes('已直连'),
+    null,
+    { timeout: 30000 },
+  );
+  await sender.click('#room-tab-text');
+  await receiver.click('#room-tab-text');
+  await sender.waitForSelector('#panel-text:not([hidden])', { timeout: 5000 });
   step('两端都进入对话');
 
   await sender.fill('#chat-input', '你好，这是一条测试消息');
