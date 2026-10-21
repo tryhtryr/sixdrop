@@ -134,7 +134,7 @@ async function main() {
         for (let i = 0; i < f.size; i += 1) bytes[i] = (i * 31 + 7 + f.seed * 13) & 255;
         dt.items.add(new File([bytes], f.name, { type: 'application/octet-stream' }));
       }
-      const input = document.getElementById('file');
+      const input = document.getElementById('file-wait');
       input.files = dt.files;
       input.dispatchEvent(new Event('change', { bubbles: true }));
     }, FILES);
@@ -162,7 +162,11 @@ async function main() {
 
     const startedAt = Date.now();
     await receiver.click('#accept');
-    await receiver.waitForSelector('#back:not([hidden])', { timeout: 120000 });
+    await receiver.waitForFunction(
+      (n) => window.__blobs.length >= n,
+      FILES.length,
+      { timeout: 120000 },
+    );
     const seconds = (Date.now() - startedAt) / 1000;
     step(`接收完成 · ${seconds.toFixed(2)}s · ${(totalBytes / 1024 / 1024 / seconds).toFixed(1)} MB/s`);
 

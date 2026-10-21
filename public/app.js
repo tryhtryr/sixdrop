@@ -1212,6 +1212,10 @@ function resetAll() {
   closePeer();
 
   if (s.ws) {
+    // 先摘回调：旧连接的 onclose 会拿新房间的 code 去重连，导致双连接
+    s.ws.onopen = null;
+    s.ws.onmessage = null;
+    s.ws.onclose = null;
     try {
       s.ws.close();
     } catch {
@@ -1483,7 +1487,8 @@ $('join').addEventListener('submit', (ev) => {
     toast('取件码是 6 位，不含 0/1/I/O');
     return;
   }
-  startReceive(code);
+  // 统一入口：和分享链接走同一条路（已验证），避免两套流程打架
+  location.href = `/?c=${code}`;
 });
 
 $('copy').addEventListener('click', async () => {
