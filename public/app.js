@@ -96,7 +96,16 @@ function roomTab(name) {
   }
   $('panel-file').hidden = text;
   $('panel-text').hidden = !text;
-  if (text) setTimeout(() => $('chat-input')?.focus(), 60);
+  // 人已经在文本面板了，未读点就没意义了
+  if (text) {
+    setChatBadge(false);
+    setTimeout(() => $('chat-input')?.focus(), 60);
+  }
+}
+
+/** 「发送文本」上的未读点：传文件中收到消息时用它提示 */
+function setChatBadge(on) {
+  $('chat-badge').hidden = !on;
 }
 
 function setFilePanel(state) {
@@ -743,14 +752,15 @@ function sendText(body) {
   return false;
 }
 
-/** 有消息进来时把用户带到文本面板，但正在等确认 / 传文件中只提示、不抢画面 */
+/** 有消息进来时把用户带到文本面板，但正在等确认 / 传文件中只点一个未读点、不抢画面 */
 function ensureChatView() {
   if (chatVisible()) return;
 
-  // 还在等对方点「接收」、或者正在传，这时候切面板会让人看不到进度
+  // 还在等对方点「接收」、或者正在传：不抢画面，用标签上的未读点提示
   const busy = s.filePanel === 'ask' || (s.filePanel === 'progress' && !s.done);
   if (busy || $('view-room').hidden) {
-    toast('收到一条文本消息');
+    setChatBadge(true);
+    toast('收到一条文本消息，切到「发送文本」可以边传边聊');
     return;
   }
 
@@ -1456,7 +1466,7 @@ function resetAll() {
   $('chat-list').innerHTML = '';
   $('chat-input').value = '';
   $('chat-input').style.height = 'auto';
-  $('chat-note').textContent = '消息走 P2P 直连，不经过服务器。关掉页面就没了。';
+  $('chat-note').textContent = '消息走 P2P 直连，不经过服务器。传文件时切过来聊天不影响传输。';
   $('chat-title').textContent = '点对点消息';
   setCode(null);
   setStatus('等待对方…');
@@ -1465,6 +1475,7 @@ function resetAll() {
   resetFileList([]);
   setFilePanel('idle');
   roomTab('file');
+  setChatBadge(false);
 }
 
 async function keepAwake() {

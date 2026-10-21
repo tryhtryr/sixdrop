@@ -76,7 +76,8 @@ await test('房间里有「收发文件 / 发送文本」两个标签', async ()
     assert.ok(htmlIds.has(id), `房间缺少 ${id}`);
   }
   assert.match(room[0], /id="tab-file"[^>]*>收发文件/);
-  assert.match(room[0], /id="tab-text"[^>]*>发送文本/);
+  assert.match(room[0], /id="tab-text"[\s\S]{0,200}?发送文本/);
+  assert.match(room[0], /id="tab-text"[\s\S]{0,300}?id="chat-badge"/, '「发送文本」上应该有未读点');
 });
 
 await test('HTML 里没有残留的占位路径', async () => {

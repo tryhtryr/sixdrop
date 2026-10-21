@@ -249,7 +249,48 @@ async function main() {
     assert.equal(second.hash, createHash('sha256').update(fillBytes(900_000, 6)).digest('hex'), '第三批哈希不对');
     step('同一房间第三批也发得出去（发送锁已释放）');
 
-    /* ---- 9. 房间里发文本，不换房间不换码 ---- */
+    /* ---- 9. 收文件的时候能切到「发送文本」，对方的消息也不会丢 ---- */
+    await pickFiles(sender, [{ name: 'room-d.bin', size: 64 * 1024 * 1024, seed: 7 }]);
+    await receiver.waitForSelector('#file-ask:not([hidden])', { timeout: 30000 });
+    await receiver.click('#accept');
+    await receiver.waitForSelector('#file-progress:not([hidden])', { timeout: 10000 });
+
+    // 接收方还在文件面板上收，发送方切到文本发一句
+    await sender.click('#tab-text');
+    await sender.fill('#chat-input', '边传边聊试试');
+    await sender.press('#chat-input', 'Enter');
+
+    // 接收方不被打断，只在「发送文本」上出现未读点
+    await receiver.waitForFunction(
+      () => !document.getElementById('chat-badge').hidden,
+      null,
+      { timeout: 15000 },
+    );
+    assert.ok(await visible(receiver, '#file-progress'), '收到消息不该打断接收中的画面');
+    assert.equal(await visible(receiver, '#panel-text'), false, '收到消息不该自动切走');
+    step('接收中收到消息：只亮未读点，不抢画面');
+
+    // 切过去就能看到消息，未读点消失
+    await receiver.click('#tab-text');
+    await receiver.waitForFunction(
+      () => [...document.querySelectorAll('#chat-list li')].some((li) => li.textContent.includes('边传边聊试试')),
+      null,
+      { timeout: 15000 },
+    );
+    assert.equal(await receiver.evaluate(() => document.getElementById('chat-badge').hidden), true, '未读点没清掉');
+    step('切到文本就能看到消息，接收还在继续');
+
+    await receiver.waitForFunction(() => window.__blobs.length >= 3, null, { timeout: 120000 });
+    const fourth = await blobAt(receiver, 2);
+    assert.equal(fourth.size, 64 * 1024 * 1024, '第四批大小不对');
+    assert.equal(
+      fourth.hash,
+      createHash('sha256').update(fillBytes(64 * 1024 * 1024, 7)).digest('hex'),
+      '第四批哈希不对',
+    );
+    step('切标签不影响接收，文件完整');
+
+    /* ---- 10. 房间里发文本，不换房间不换码 ---- */
     await sender.click('#tab-text');
     await sender.fill('#chat-input', '房间里发的消息');
     await sender.press('#chat-input', 'Enter');
@@ -277,7 +318,7 @@ async function main() {
     assertRoomIntact(receiver, code, '文本切回文件后');
     step('聊完还能切回文件面板');
 
-    /* ---- 10. 离开：回大厅，并拿到自己的新码 ---- */
+    /* ---- 11. 离开：回大厅，并拿到自己的新码 ---- */
     await sender.click('#leave');
     await sender.waitForSelector('#view-lobby:not([hidden])', { timeout: 10000 });
     assert.equal(await sender.locator('#view-room').isVisible(), false, '离开后房间还显示着');

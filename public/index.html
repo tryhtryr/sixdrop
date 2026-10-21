@@ -78,7 +78,9 @@
 
         <div class="tabs" role="tablist">
           <button class="tab is-active" id="tab-file" role="tab" aria-selected="true">收发文件</button>
-          <button class="tab" id="tab-text" role="tab" aria-selected="false">发送文本</button>
+          <button class="tab" id="tab-text" role="tab" aria-selected="false">
+            发送文本<i class="badge" id="chat-badge" hidden></i>
+          </button>
         </div>
 
         <div id="panel-file">
@@ -120,7 +122,7 @@
 
         <div id="panel-text" hidden>
           <p class="label" id="chat-title">点对点消息</p>
-          <p class="muted small" id="chat-note">消息走 P2P 直连，不经过服务器。关掉页面就没了。</p>
+          <p class="muted small" id="chat-note">消息走 P2P 直连，不经过服务器。传文件时切过来聊天不影响传输。</p>
           <ul class="chat" id="chat-list"></ul>
           <form class="join chat-form" id="chat-form">
             <textarea
