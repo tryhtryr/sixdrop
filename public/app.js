@@ -2,6 +2,7 @@
 const CHUNK_LIMIT =
   Math.min(256, Math.max(16, Number(new URLSearchParams(location.search).get('chunk')) || 256)) * 1024;
 const HIGH_WATER = 8 * 1024 * 1024;
+const PREFETCH_BYTES = 8 * 1024 * 1024;
 const LOW_WATER = 2 * 1024 * 1024;
 const JOIN_TIMEOUT = 8000;
 const CONNECT_TIMEOUT = 30000;
@@ -699,9 +700,14 @@ async function beginSending() {
       }
 
       // 只有第一个文件需要等对方确认；确认一次，后面自动接着传
+      let warm = null;
       if (i === 0) {
+        // 对方点「接收」前有几秒空闲，这段时间先把开头读进内存，
+        // 否则握手完成后的第一次读盘（手机上尤其慢）会把开头拖成龟速
+        const warmPromised = prefetch(file, chunkSize, PREFETCH_BYTES);
         const accepted = await waitAccept();
         if (!accepted) return;
+        warm = await warmPromised;
       }
 
       $('xfer-name').textContent = file.name;
@@ -711,10 +717,14 @@ async function beginSending() {
       progress(0, file.size);
 
       let offset = 0;
+      let warmIndex = 0;
       while (offset < file.size) {
         if (s.done) return;
         await waitForDrain(dc);
-        const buf = await file.slice(offset, offset + chunkSize).arrayBuffer();
+        const buf =
+          warm && warmIndex < warm.length
+            ? warm[warmIndex++]
+            : await file.slice(offset, offset + chunkSize).arrayBuffer();
         await sendChunk(dc, buf);
         offset += buf.byteLength;
         s.sentBytes += buf.byteLength;
@@ -731,10 +741,27 @@ async function beginSending() {
     $('back').hidden = false;
     stopKeepalive();
     keepAwakeOff();
-    setTimeout(() => sendSignal({ t: 'bye' }), 500);
   } catch (err) {
     fail('发送失败', err?.message || String(err));
   }
+}
+
+/** 预读开头若干 MB，返回按顺序切好的 ArrayBuffer */
+async function prefetch(file, chunkSize, limit) {
+  const bufs = [];
+  let off = 0;
+  const end = Math.min(file.size, limit);
+  try {
+    while (off < end) {
+      const b = await file.slice(off, off + chunkSize).arrayBuffer();
+      if (!b.byteLength) break;
+      bufs.push(b);
+      off += b.byteLength;
+    }
+  } catch {
+    /* 预读失败不影响正常流程，后面照常按需读取 */
+  }
+  return bufs;
 }
 
 function waitAccept() {
@@ -903,7 +930,6 @@ async function finishReceive() {
   $('back').hidden = false;
   stopKeepalive();
   keepAwakeOff();
-  sendSignal({ t: 'bye' });
 }
 
 /* ---------------- 中转兜底（打洞失败时） ---------------- */

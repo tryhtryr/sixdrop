@@ -17,7 +17,7 @@ const EDGE = [
 const MB = Number(process.env.BENCH_MB || 256);
 const CHUNK = Number(process.env.BENCH_CHUNK_KB || 256) * 1024;
 
-const browser = await chromium.launch(EDGE ? { executablePath: EDGE, headless: true } : { headless: true });
+const browser = await chromium.launch(EDGE ? { executablePath: EDGE, headless: process.env.HEADED !== '1' } : { headless: process.env.HEADED !== '1' });
 const page = await browser.newPage();
 
 const result = await page.evaluate(

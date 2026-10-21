@@ -19,7 +19,7 @@ const EDGE = [
   .filter(Boolean)
   .find((p) => existsSync(p));
 
-const browser = await chromium.launch(EDGE ? { executablePath: EDGE, headless: true } : { headless: true });
+const browser = await chromium.launch(EDGE ? { executablePath: EDGE, headless: process.env.HEADED !== '1' } : { headless: process.env.HEADED !== '1' });
 const page = await browser.newPage();
 
 const run = (n) =>
