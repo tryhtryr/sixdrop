@@ -8,7 +8,12 @@
 **仓库：<https://github.com/tryhtryr/sixdrop>**（无 LICENSE，public 但非开源）
 **本地：`E:\sixdrop`**（唯一副本）
 
-当前 HEAD：`UI 合并完成`（见 `git log`）。**本地已合并，尚未部署**——部署前先看第六节。
+当前 HEAD：`480b1ba feat(ui): merge wait/ask/xfer/chat into one persistent room view`
+（这个文档的部署记录是它之后的一个小提交）。
+
+**线上已部署这一版**：2026-10-22，Version ID `351a3069-9377-4c45-86c8-62f138adbd49`，
+`wrangler deploy` 只上传了 `index.html` / `app.js` / `style.css` 三个资产。
+线上回归（e2e / chat-e2e / room-e2e）三条全过。
 
 ## 二、这一轮做了什么（UI 合并，已完成）
 
@@ -88,8 +93,7 @@ node tools/room-e2e.mjs     # 房间模型验收（这一轮新增）
 
 ## 四、下一步
 
-1. **先部署 + 线上回归**（还没做，见第六节）：`npm run deploy` 之后用
-   `BASE_URL=https://sixdrop.dev node tools/e2e.mjs`、`chat-e2e`、`room-e2e` 各跑一遍
+1. ~~部署 + 线上回归~~ —— 已完成（见第一节的版本号）
 2. **阶段 2：server 模式**（`docs/room-model-spec.md` 第六节）——打洞失败不跳页，
    文件面板直接给「上传并生成链接」，文本照常走 WS，再提供「重试直连」
    （现在还是独立的 `view-error` / `view-relay` 两页）
@@ -115,6 +119,17 @@ node tools/room-e2e.mjs     # 房间模型验收（这一轮新增）
 cd E:\sixdrop
 npx wrangler deploy        # 线上 = 主分支 public/ 的内容
 ```
+
+本机没有全局 `npm`/`npx`，实际可用的写法：
+
+```powershell
+$env:PATH = "C:\Users\jian\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;" + $env:PATH
+cd E:\sixdrop
+node node_modules\wrangler\bin\wrangler.js deploy
+```
+
+认证信息在 `%APPDATA%\xdg.config\.wrangler\config\default.toml`（wrangler 4 的位置）。
+提交历史不回滚就不用 `wrangler rollback`；真出事时它按 Version ID 回退。
 
 部署后必须做的回归（线上）：
 
