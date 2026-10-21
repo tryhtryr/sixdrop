@@ -1682,13 +1682,20 @@ $('chat-form').addEventListener('submit', (ev) => {
   autoGrowChatInput();
 });
 
-$('chat-back').addEventListener('click', () => {
+// 回文件面板，房间和码都保留
+$('chat-to-file').addEventListener('click', () => {
   if (s.code) {
     show('wait');
     return;
   }
   resetAll();
   show('start');
+});
+
+// 真正离开：断开并重新开一个房间
+$('chat-back').addEventListener('click', () => {
+  sendSignal({ t: 'bye' });
+  boot();
 });
 
 $('use-relay').addEventListener('click', () => {
