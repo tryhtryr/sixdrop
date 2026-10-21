@@ -69,6 +69,12 @@ def call(method, params=None):
 
 call("Runtime.enable")
 
+for _ in range(80):
+    st = call("Runtime.evaluate", {"expression": "document.readyState", "returnByValue": True})
+    if st.get("result", {}).get("result", {}).get("value") == "complete":
+        break
+    time.sleep(0.25)
+
 SCRIPT = """
 (async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -113,11 +119,20 @@ SCRIPT = """
 })()
 """ % CODE
 
-resp = call(
-    "Runtime.evaluate",
-    {"expression": SCRIPT, "awaitPromise": True, "returnByValue": True},
-)
-value = resp.get("result", {}).get("result", {}).get("value")
+resp = None
+for attempt in range(4):
+    resp = call(
+        "Runtime.evaluate",
+        {"expression": SCRIPT, "awaitPromise": True, "returnByValue": True},
+    )
+    if "result" in resp:
+        break
+    print(f"  重试 {attempt + 1}: {json.dumps(resp.get('error', {}))[:120]}", flush=True)
+    time.sleep(1.5)
+raw = resp.get("result", {})
+if raw.get("exceptionDetails") or "result" not in raw:
+    print("  RAW " + json.dumps(resp)[:1200], flush=True)
+value = raw.get("result", {}).get("value")
 print("  RESULT " + str(value))
 
 ws.close()

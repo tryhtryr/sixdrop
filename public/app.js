@@ -1,9 +1,10 @@
 // 分块上限默认 256 KiB；?chunk=64 可以调小做对比。真正发送时还会按平台的 SCTP 上限收窄
 const CHUNK_LIMIT =
   Math.min(256, Math.max(16, Number(new URLSearchParams(location.search).get('chunk')) || 256)) * 1024;
-const HIGH_WATER = 8 * 1024 * 1024;
+const TUNE = new URLSearchParams(location.search);
+const HIGH_WATER = Math.max(2, Math.min(16, Number(TUNE.get('water')) || 8)) * 1024 * 1024;
+const LOW_WATER = Math.max(1, Math.min(HIGH_WATER / 1024 / 1024, Number(TUNE.get('low')) || (HIGH_WATER / 1024 / 1024) / 2)) * 1024 * 1024;
 const PREFETCH_BYTES = 8 * 1024 * 1024;
-const LOW_WATER = 2 * 1024 * 1024;
 const JOIN_TIMEOUT = 8000;
 const CONNECT_TIMEOUT = 30000;
 
@@ -678,7 +679,7 @@ async function beginSending() {
 
   // Chrome 的 bufferedAmountLowThreshold 默认是 0，只会在缓冲彻底排空时触发；
   // 设成一半，发送端就能在管道没空之前补货。
-  dc.bufferedAmountLowThreshold = Math.floor(HIGH_WATER / 2);
+  dc.bufferedAmountLowThreshold = Math.floor(LOW_WATER);
 
   try {
     for (let i = 0; i < s.files.length; i += 1) {

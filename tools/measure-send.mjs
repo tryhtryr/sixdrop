@@ -21,7 +21,7 @@ const browser = await chromium.launch(EDGE ? { executablePath: EDGE, headless: t
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
 page.on('pageerror', (e) => console.log('  页面错误:', e.message));
 
-await page.goto('https://sixdrop.dev', { waitUntil: 'domcontentloaded' });
+await page.goto(process.env.SEND_URL || 'https://sixdrop.dev', { waitUntil: 'domcontentloaded' });
 
 // 造一个 MB 大小的文件塞进文件选择框
 await page.evaluate((mb) => {
