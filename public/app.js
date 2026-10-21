@@ -4,7 +4,7 @@ const CHUNK_LIMIT =
 const TUNE = new URLSearchParams(location.search);
 const HIGH_WATER = Math.max(2, Math.min(16, Number(TUNE.get('water')) || 8)) * 1024 * 1024;
 const LOW_WATER = Math.max(1, Math.min(HIGH_WATER / 1024 / 1024, Number(TUNE.get('low')) || (HIGH_WATER / 1024 / 1024) / 2)) * 1024 * 1024;
-const PREFETCH_BYTES = 8 * 1024 * 1024;
+const PREFETCH_BYTES = 16 * 1024 * 1024;
 const JOIN_TIMEOUT = 8000;
 const CONNECT_TIMEOUT = 30000;
 
@@ -536,6 +536,9 @@ function wireChannel(dc, isSender) {
         totalBytes: s.totalSize,
       }),
     );
+
+    // 趁用户还在看确认框，先把开头读进内存（手机首次读盘最慢）
+    s.warmPromise = prefetch(file, CHUNK_LIMIT, PREFETCH_BYTES);
   };
 
   dc.onmessage = (ev) => {
@@ -705,10 +708,16 @@ async function beginSending() {
       if (i === 0) {
         // 对方点「接收」前有几秒空闲，这段时间先把开头读进内存，
         // 否则握手完成后的第一次读盘（手机上尤其慢）会把开头拖成龟速
-        const warmPromised = prefetch(file, chunkSize, PREFETCH_BYTES);
+        // 预读在 dc.onopen 时就已经启动（见 wireChannel），这里复用；
+        // 万一没启动（例如多文件后的第 2 批），再现场开一个
+        const warmPromised =
+          s.warmPromise && i === 0
+            ? s.warmPromise
+            : prefetch(file, chunkSize, PREFETCH_BYTES);
         const accepted = await waitAccept();
         if (!accepted) return;
         warm = await warmPromised;
+        s.warmPromise = null;
       }
 
       $('xfer-name').textContent = file.name;
@@ -1247,6 +1256,7 @@ function resetAll() {
   s.pending = [];
   s.reconnects = 0;
   s.dropToken = '';
+  s.warmPromise = null;
   s.textViaServer = false;
   s.mode = 'file';
   s.rate = 0;
