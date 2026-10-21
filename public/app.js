@@ -1220,6 +1220,7 @@ function resetAll() {
   $('relay-share').hidden = true;
   $('chat-list').innerHTML = '';
   $('chat-input').value = '';
+  $('chat-input').style.height = 'auto';
   $('chat-note').textContent = '消息走 P2P 直连，不经过服务器。关掉页面就没了。';
   $('chat-title').textContent = '点对点消息';
   $('room-code').textContent = '------';
@@ -1456,6 +1457,23 @@ $('text-start').addEventListener('click', () => {
   startTextChat();
 });
 
+/** 多行输入框跟着内容长高，最多 132px 后内部滚动 */
+function autoGrowChatInput() {
+  const el = $('chat-input');
+  el.style.height = 'auto';
+  el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
+}
+
+$('chat-input').addEventListener('input', autoGrowChatInput);
+
+$('chat-input').addEventListener('keydown', (ev) => {
+  if (ev.key !== 'Enter' || ev.shiftKey) return;
+  // 中文输入法正在组字时，回车是「上屏」不是「发送」
+  if (ev.isComposing || ev.keyCode === 229) return;
+  ev.preventDefault();
+  $('chat-form').requestSubmit();
+});
+
 $('chat-form').addEventListener('submit', (ev) => {
   ev.preventDefault();
   const body = $('chat-input').value.trim();
@@ -1468,6 +1486,7 @@ $('chat-form').addEventListener('submit', (ev) => {
 
   appendChat(body, true);
   $('chat-input').value = '';
+  autoGrowChatInput();
 });
 
 $('chat-back').addEventListener('click', () => {

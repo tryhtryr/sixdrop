@@ -95,10 +95,40 @@ try {
   );
   step('发送方收到回复');
 
-  const mine = await sender.locator('#chat-list li.mine').count();
-  const theirs = await sender.locator('#chat-list li.theirs').count();
-  assert.equal(mine, 1, '发送方自己的消息应标为 mine');
-  assert.equal(theirs, 1, '对方消息应标为 theirs');
+  assert.equal(await sender.locator('#chat-list li.mine').count(), 1, '发送方自己的消息应标为 mine');
+  assert.equal(await sender.locator('#chat-list li.theirs').count(), 1, '对方消息应标为 theirs');
+
+  // 多行文本：换行必须原样保留，粘贴也不能吞掉
+  await sender.fill('#chat-input', '第一行\n第二行\n\n第四行');
+  await sender.press('#chat-input', 'Enter');
+  await receiver.waitForFunction(
+    () => [...document.querySelectorAll('#chat-list li')].some((li) => li.textContent.includes('第四行')),
+    null,
+    { timeout: 15000 },
+  );
+  const multi = await receiver.evaluate(() => {
+    const li = [...document.querySelectorAll('#chat-list li')].find((x) => x.textContent.includes('第四行'));
+    return {
+      text: li.textContent,
+      ws: getComputedStyle(li).whiteSpace,
+      lines: li.textContent.split('\n').length,
+      height: li.getBoundingClientRect().height,
+    };
+  });
+  assert.equal(multi.lines, 4, `换行没保留，实际拿到 ${multi.lines} 行: ${JSON.stringify(multi.text)}`);
+  assert.equal(multi.ws, 'pre-wrap', '气泡的空白处理不对');
+  assert.ok(multi.height > 70, `多行气泡高度异常: ${multi.height}`);
+  step(`多行文本通过（${multi.lines} 行，气泡高 ${Math.round(multi.height)}px）`);
+
+  // Shift+回车只换行，不发送
+  const beforeCount = await sender.locator('#chat-list li.mine').count();
+  await sender.fill('#chat-input', '换行测试');
+  await sender.press('#chat-input', 'Shift+Enter');
+  await sender.type('#chat-input', '第二句');
+  const draft = await sender.inputValue('#chat-input');
+  assert.ok(draft.includes('\n'), 'Shift+回车没有插入换行');
+  assert.equal(await sender.locator('#chat-list li.mine').count(), beforeCount, 'Shift+回车不该发出去');
+  step('Shift+回车只换行不发送');
 
   console.log('\n文本消息链路通过');
 } catch (err) {

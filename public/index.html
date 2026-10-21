@@ -84,7 +84,13 @@
         <p class="muted small" id="chat-note">消息走 P2P 直连，不经过服务器。关掉页面就没了。</p>
         <ul class="chat" id="chat-list"></ul>
         <form class="join chat-form" id="chat-form">
-          <input id="chat-input" maxlength="2000" placeholder="输入消息，回车发送" autocomplete="off" />
+          <textarea
+            id="chat-input"
+            rows="1"
+            maxlength="2000"
+            placeholder="输入消息，回车发送，Shift+回车换行"
+            autocomplete="off"
+          ></textarea>
           <button type="submit">发送</button>
         </form>
         <button class="link" id="chat-back">结束</button>

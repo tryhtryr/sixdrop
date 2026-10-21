@@ -155,7 +155,8 @@ body {
   gap: 10px;
 }
 
-.join input {
+.join input,
+.join textarea {
   flex: 1;
   min-width: 0;
   padding: 12px 14px;
@@ -169,7 +170,8 @@ body {
   outline: none;
 }
 
-.join input:focus {
+.join input:focus,
+.join textarea:focus {
   border-color: var(--accent);
 }
 
@@ -434,10 +436,25 @@ button.link {
   margin-top: 14px;
 }
 
-.chat-form input {
+.chat-form textarea {
   letter-spacing: normal;
   text-transform: none;
   font: inherit;
+  line-height: 1.5;
+  resize: none;
+  overflow-y: auto;
+  max-height: 132px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-form {
+  align-items: flex-end;
+}
+
+.chat-form button {
+  height: 44px;
+  flex: 0 0 auto;
 }
 
 .toast {
