@@ -1,5 +1,5 @@
 /**
- * 端到端验证「只发文字」模式：两个真实浏览器页面互发消息。
+ * 端到端验证「发送文本」：两个真实浏览器页面互发消息。
  *   node tools/chat-e2e.mjs
  *   BASE_URL=https://sixdrop.dev node tools/chat-e2e.mjs
  */
@@ -59,25 +59,40 @@ try {
   await sender.goto(base);
   await receiver.goto(base);
 
-  // 首页还在房间后面：先离开房间，再从首页选「发送文本」
-  await sender.click('#cancel');
-  await sender.click('#start-tab-text');
-  await sender.waitForSelector('#start-panel-text:not([hidden])', { timeout: 5000 });
-  await sender.click('#text-start');
+  // 大厅：拿到自己的取件码；对方输码加入后两边一起进房间
   await sender.waitForFunction(
-    () => /^[2-9A-HJ-NP-Z]{6}$/.test(document.getElementById('room-code').textContent.trim()),
+    () => /^[2-9A-HJ-NP-Z]{6}$/.test(document.getElementById('lobby-code').textContent.trim()),
     null,
     { timeout: 20000 },
   );
-  const code = (await sender.locator('#room-code').textContent()).trim();
+  const code = (await sender.locator('#lobby-code').textContent()).trim();
   step(`取件码 ${code}`);
 
   await receiver.fill('#code', code);
   await receiver.press('#code', 'Enter');
 
-  await sender.waitForSelector('#panel-text:not([hidden])', { timeout: 30000 });
-  await receiver.waitForSelector('#panel-text:not([hidden])', { timeout: 30000 });
-  step('两端都进入对话');
+  await sender.waitForSelector('#view-room:not([hidden])', { timeout: 30000 });
+  await receiver.waitForSelector('#view-room:not([hidden])', { timeout: 30000 });
+
+  // 等直连通道打开（此时发文本才走得到对方）
+  for (const [name, page] of [
+    ['发送方', sender],
+    ['接收方', receiver],
+  ]) {
+    await page.waitForFunction(
+      () => document.getElementById('room-status').textContent.includes('已直连'),
+      null,
+      { timeout: 30000 },
+    );
+    step(`${name}已直连`);
+  }
+
+  // 房间里的第二个标签就是聊天
+  await sender.click('#tab-text');
+  await receiver.click('#tab-text');
+  await sender.waitForSelector('#panel-text:not([hidden])', { timeout: 5000 });
+  await receiver.waitForSelector('#panel-text:not([hidden])', { timeout: 5000 });
+  step('两端都切到「发送文本」标签');
 
   await sender.fill('#chat-input', '你好，这是一条测试消息');
   await sender.press('#chat-input', 'Enter');
@@ -131,6 +146,12 @@ try {
   assert.ok(draft.includes('\n'), 'Shift+回车没有插入换行');
   assert.equal(await sender.locator('#chat-list li.mine').count(), beforeCount, 'Shift+回车不该发出去');
   step('Shift+回车只换行不发送');
+
+  // 聊完切回文件标签，房间和码都还在
+  await sender.click('#tab-file');
+  assert.ok(await sender.locator('#panel-file').isVisible(), '切回文件标签后文件面板没出来');
+  assert.equal((await sender.locator('#room-code').textContent()).trim(), code, '聊天后取件码变了');
+  step('切回文件面板，房间和码都在');
 
   console.log('\n文本消息链路通过');
 } catch (err) {

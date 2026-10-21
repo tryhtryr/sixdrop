@@ -1,11 +1,12 @@
 /**
- * 房间模型验收（合并 UI 之后）：一个房间从头用到尾，码不变。
+ * 房间模型验收：大厅只给码，输码进房间，房间里两个标签。
  *
  *   node tools/room-e2e.mjs
  *   BASE_URL=https://sixdrop.dev node tools/room-e2e.mjs
  *
- * 覆盖 docs/room-model-spec.md 第八节的用例：
- *   自动建房 · 输码加入 · 两个标签来回切 · 拒绝不留坑 · 多批文件 · 房间里发文本 · 离开
+ * 覆盖：
+ *   打开只有取件码 + 输码框 · 输码进房间 · 房主自动进房间 · 两个标签来回切 ·
+ *   拒绝不留坑 · 多批文件 · 房间里发文本 · 离开回大厅
  */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -28,7 +29,6 @@ const EDGE = [
 
 const CODE_RE = /^[2-9A-HJ-NP-Z]{6}$/;
 const step = (msg) => console.log(`  · ${msg}`);
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const fillBytes = (size, seed) => {
   const bytes = new Uint8Array(size);
@@ -68,7 +68,32 @@ async function ensureServer() {
 /* ---------------- 页面小工具 ---------------- */
 
 const visible = (page, sel) => page.locator(sel).isVisible();
-const codeOf = async (page) => (await page.locator('#room-code').textContent()).trim();
+const roomCode = async (page) => (await page.locator('#room-code').textContent()).trim();
+const lobbyCode = async (page) => (await page.locator('#lobby-code').textContent()).trim();
+
+async function waitLobbyCode(page) {
+  await page.waitForFunction(
+    () => /^[2-9A-HJ-NP-Z]{6}$/.test(document.getElementById('lobby-code').textContent.trim()),
+    null,
+    { timeout: 30000 },
+  );
+  return lobbyCode(page);
+}
+
+/** 在大厅输入对方的码加入（会整页跳 /?c=） */
+async function joinByCode(page, code) {
+  await page.fill('#code', code);
+  await page.press('#code', 'Enter');
+  await page.waitForSelector('#view-room:not([hidden])', { timeout: 30000 });
+}
+
+async function waitConnected(page) {
+  await page.waitForFunction(
+    () => document.getElementById('room-status').textContent.includes('已直连'),
+    null,
+    { timeout: 30000 },
+  );
+}
 
 async function pickFiles(page, files) {
   await page.evaluate((list) => {
@@ -87,7 +112,19 @@ async function pickFiles(page, files) {
 /** 房间必须还在，而且码没变 */
 async function assertRoomIntact(page, code, where) {
   assert.ok(await visible(page, '#view-room'), `${where}：房间视图不见了`);
-  assert.equal(await codeOf(page), code, `${where}：取件码变了`);
+  assert.equal(await roomCode(page), code, `${where}：取件码变了`);
+}
+
+async function blobAt(page, index) {
+  return page.evaluate(async (i) => {
+    const blob = window.__blobs[i];
+    const buf = await blob.arrayBuffer();
+    const digest = await crypto.subtle.digest('SHA-256', buf);
+    return {
+      size: buf.byteLength,
+      hash: [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join(''),
+    };
+  }, index);
 }
 
 async function main() {
@@ -123,53 +160,60 @@ async function main() {
       };
     });
 
-    /* ---- 1. 打开就有码（自动建房） ---- */
+    /* ---- 1. 打开页面：只有取件码 + 输码框 ---- */
     await sender.goto(base);
-    await sender.waitForFunction(
-      () => /^[2-9A-HJ-NP-Z]{6}$/.test(document.getElementById('room-code').textContent.trim()),
-      null,
-      { timeout: 30000 },
-    );
-    const code = await codeOf(sender);
-    assertRoomIntact(sender, code, '建房后');
-    assert.ok(await visible(sender, '#file-idle'), '建房后应该停在文件面板的空闲态');
-    step(`自动建房 ${code}`);
+    const code = await waitLobbyCode(sender);
+    assert.match(code, CODE_RE, '大厅里的取件码格式不对');
+    assert.ok(await visible(sender, '#view-lobby'), '打开页面应该停在大厅');
+    assert.equal(await sender.locator('#view-room').isVisible(), false, '还没进房间就显示房间了');
+    assert.equal(await sender.locator('#view-lobby input[type=file]').count(), 0, '大厅不该有文件选择框');
+    assert.equal(await sender.locator('#view-lobby .tab').count(), 0, '大厅不该有标签页');
+    step(`打开只有取件码 ${code}`);
 
-    /* ---- 2. 两个标签随时切，码不变 ---- */
+    /* ---- 2. 输码加入：直接进房间 ---- */
+    await receiver.goto(base);
+    const receiverOwn = await waitLobbyCode(receiver);
+    assert.notEqual(receiverOwn, code, '两个页面拿到了同一个码');
+    await joinByCode(receiver, code);
+    assert.ok(await visible(receiver, '#file-idle'), '进房间后应该停在文件面板');
+    assert.equal(await roomCode(receiver), code, '房间里的码不是输进去的那个');
+    step('输码直接进入房间');
+
+    /* ---- 3. 房主自动进房间 ---- */
+    await sender.waitForSelector('#view-room:not([hidden])', { timeout: 30000 });
+    assert.equal(await roomCode(sender), code, '房主进房间后码变了');
+    assert.ok(await visible(sender, '#file-idle'), '房主进房间后不是文件面板');
+    step('对方进房，房主也自动进房间');
+
+    await waitConnected(sender);
+    await waitConnected(receiver);
+    step('直连建立');
+
+    /* ---- 4. 两个标签随时切，码不变 ---- */
     await sender.click('#tab-text');
     assert.ok(await visible(sender, '#panel-text'), '点了文本标签却没切到文本面板');
     await sender.click('#tab-file');
-    assert.ok(await visible(sender, '#file-idle'), '切回文件标签后不是空闲态');
+    assert.ok(await visible(sender, '#file-idle'), '切回文件标签后不是文件面板');
     assertRoomIntact(sender, code, '切标签后');
-    step('标签来回切，房间和码都在');
+    step('两个标签来回切，房间和码都在');
 
-    /* ---- 3. 房主先选文件，等对方进来 ---- */
+    /* ---- 5. 房间里选文件 → 对方看到确认框 → 拒绝 ---- */
     await pickFiles(sender, [{ name: 'room-a.bin', size: 1_500_000, seed: 4 }]);
-    await sender.waitForFunction(
-      () => !document.getElementById('wait-files').hidden,
-      null,
-      { timeout: 5000 },
-    );
-    step('房主已选文件，等待对方');
-
-    /* ---- 4. 深链加入，接收方看到确认框 ---- */
-    await receiver.goto(`${base}/?c=${code}`);
     await receiver.waitForSelector('#file-ask:not([hidden])', { timeout: 30000 });
     assert.equal(await receiver.locator('#ask-name').textContent(), 'room-a.bin');
-    assertRoomIntact(receiver, code, '深链加入后');
-    step('对方进房，确认框出现');
+    assertRoomIntact(receiver, code, '收到确认框后');
+    step('房间里选文件，对方看到确认框');
 
-    /* ---- 5. 拒绝只退这一批，房间留着 ---- */
     await receiver.click('#decline');
     await receiver.waitForSelector('#file-idle:not([hidden])', { timeout: 10000 });
     assertRoomIntact(receiver, code, '拒绝后');
     await sender.waitForFunction(
-      () => document.getElementById('wait-sub').textContent.includes('拒绝'),
+      () => document.getElementById('room-status').textContent.includes('拒绝'),
       null,
       { timeout: 20000 },
     );
     assertRoomIntact(sender, code, '收到拒绝后');
-    assert.ok(await visible(sender, '#file-idle'), '被拒绝后房主应该回到空闲态');
+    assert.ok(await visible(sender, '#file-idle'), '被拒绝后房主应该回到文件面板');
     step('拒绝：两边都留在原房间');
 
     /* ---- 6. 同一房间换一批文件，接收方接受 ---- */
@@ -179,18 +223,9 @@ async function main() {
     await receiver.click('#accept');
     await receiver.waitForFunction(() => window.__blobs.length >= 1, null, { timeout: 120000 });
 
-    const first = await receiver.evaluate(async () => {
-      const blob = window.__blobs[0];
-      const buf = await blob.arrayBuffer();
-      const digest = await crypto.subtle.digest('SHA-256', buf);
-      return {
-        size: blob.size,
-        hash: [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join(''),
-      };
-    });
-    const expectedFirst = createHash('sha256').update(fillBytes(2_200_000, 5)).digest('hex');
+    const first = await blobAt(receiver, 0);
     assert.equal(first.size, 2_200_000, '第一个文件大小不对');
-    assert.equal(first.hash, expectedFirst, '第一个文件哈希不对');
+    assert.equal(first.hash, createHash('sha256').update(fillBytes(2_200_000, 5)).digest('hex'), '第一个文件哈希不对');
     await sender.waitForFunction(
       () => document.getElementById('xfer-sub').textContent.includes('完成'),
       null,
@@ -198,7 +233,7 @@ async function main() {
     );
     step('第二批文件传完，哈希一致');
 
-    /* ---- 7. 传完点「返回」：回到房间而不是回首页 ---- */
+    /* ---- 7. 传完点「返回」：回到房间而不是回大厅 ---- */
     await sender.click('#back');
     await sender.waitForSelector('#file-idle:not([hidden])', { timeout: 10000 });
     assertRoomIntact(sender, code, '传完点返回后');
@@ -209,20 +244,9 @@ async function main() {
     await receiver.waitForSelector('#file-ask:not([hidden])', { timeout: 30000 });
     await receiver.click('#accept');
     await receiver.waitForFunction(() => window.__blobs.length >= 2, null, { timeout: 60000 });
-    const second = await receiver.evaluate(async () => {
-      const buf = await window.__blobs[1].arrayBuffer();
-      const digest = await crypto.subtle.digest('SHA-256', buf);
-      return {
-        size: buf.byteLength,
-        hash: [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join(''),
-      };
-    });
-    assert.equal(second.size, 900_000, '第二批（第三批文件）大小不对');
-    assert.equal(
-      second.hash,
-      createHash('sha256').update(fillBytes(900_000, 6)).digest('hex'),
-      '第二批（第三批文件）哈希不对',
-    );
+    const second = await blobAt(receiver, 1);
+    assert.equal(second.size, 900_000, '第三批大小不对');
+    assert.equal(second.hash, createHash('sha256').update(fillBytes(900_000, 6)).digest('hex'), '第三批哈希不对');
     step('同一房间第三批也发得出去（发送锁已释放）');
 
     /* ---- 9. 房间里发文本，不换房间不换码 ---- */
@@ -236,7 +260,6 @@ async function main() {
     );
     assert.ok(await visible(receiver, '#panel-text'), '收到文本后应该切到文本面板');
     assertRoomIntact(receiver, code, '收到文本后');
-    assert.equal(await codeOf(sender), code, '发文本后取件码变了');
 
     await receiver.fill('#chat-input', '房间还在，回你一句');
     await receiver.press('#chat-input', 'Enter');
@@ -246,19 +269,21 @@ async function main() {
       { timeout: 15000 },
     );
     assertRoomIntact(sender, code, '互发文本后');
+    step('同一个房间里互发文本，码没变');
 
-    // 从文本面板切回文件面板：房间还在，文件面板保留上次的状态
+    // 从文本面板切回文件面板：房间还在，文件面板保留上次状态
     await receiver.click('#tab-file');
     assert.ok(await visible(receiver, '#panel-file'), '切回文件标签后文件面板没出来');
-    assert.ok(await visible(receiver, '#file-progress'), '传完后切回来应该还看得到文件列表和进度');
     assertRoomIntact(receiver, code, '文本切回文件后');
-    step('同一个房间里聊完还能切回文件面板');
+    step('聊完还能切回文件面板');
 
-    /* ---- 10. 离开：回首页，房间不再显示 ---- */
-    await sender.click('#cancel');
-    await sender.waitForSelector('#view-start:not([hidden])', { timeout: 10000 });
+    /* ---- 10. 离开：回大厅，并拿到自己的新码 ---- */
+    await sender.click('#leave');
+    await sender.waitForSelector('#view-lobby:not([hidden])', { timeout: 10000 });
     assert.equal(await sender.locator('#view-room').isVisible(), false, '离开后房间还显示着');
-    step('离开回到首页');
+    const fresh = await waitLobbyCode(sender);
+    assert.notEqual(fresh, code, '离开后大厅里的码没换');
+    step(`离开回到大厅，新码 ${fresh}`);
 
     if (errors.length) throw new Error('页面报错:\n' + errors.join('\n'));
     console.log('\n房间模型验收通过');

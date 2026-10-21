@@ -79,14 +79,6 @@ body {
   letter-spacing: 0.18em;
 }
 
-.room-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  /* 窄屏折行时，操作按钮自己靠右排一行 */
-  margin-left: auto;
-}
-
 .room-head .link {
   margin-top: 0;
   padding: 6px 8px;
@@ -125,21 +117,6 @@ body {
   box-shadow: inset 0 0 0 1px #2c3a4e;
 }
 
-.text-panel {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 30px 16px 26px;
-  border: 1.5px dashed #333a46;
-  border-radius: 12px;
-  text-align: center;
-}
-
-.text-panel button {
-  margin-top: 10px;
-}
-
 .drop {
   display: flex;
   flex-direction: column;
@@ -168,6 +145,23 @@ body {
   text-align: center;
 }
 
+.or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 18px 0;
+}
+
+.or::before,
+.or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 .join {
   display: flex;
   gap: 10px;
@@ -191,6 +185,13 @@ body {
 .join input:focus,
 .join textarea:focus {
   border-color: var(--accent);
+}
+
+/* 输入框本身是给取件码用的等宽大写，占位提示用正常排版 */
+.join input::placeholder {
+  letter-spacing: normal;
+  text-transform: none;
+  font-weight: 500;
 }
 
 button {

@@ -42,28 +42,29 @@
         <p>六位取件码 · 点对点直传 · 文件不经过服务器</p>
       </header>
 
-      <section id="view-start" class="view card">
-        <div class="tabs" role="tablist">
-          <button class="tab is-active" id="start-tab-file" role="tab" aria-selected="true">发送文件</button>
-          <button class="tab" id="start-tab-text" role="tab" aria-selected="false">发送文本</button>
+      <!-- 大厅：只放自己的取件码 + 输入对方的取件码，选文件/聊天都在房间里面 -->
+      <section id="view-lobby" class="view card">
+        <p class="label">把这串取件码发给对方，对方输入就能进来</p>
+        <div class="code" id="lobby-code">------</div>
+        <div class="row">
+          <button class="ghost" id="copy">复制取件码</button>
+          <button class="ghost" id="copy-link">复制链接</button>
         </div>
 
-        <div class="tab-panel" id="start-panel-file">
-          <label class="drop" id="drop">
-            <input type="file" id="file" hidden multiple />
-            <span class="drop-title">选择文件发送</span>
-            <span class="drop-sub">可多选，也可以直接拖进来 · 之后会得到一个 6 位取件码</span>
-          </label>
-        </div>
+        <div class="or"><span>或</span></div>
 
-        <div class="tab-panel" id="start-panel-text" hidden>
-          <div class="text-panel">
-            <p class="drop-title">只发一段文本</p>
-            <p class="drop-sub">双方连上后互发消息，走的也是 P2P 直连，不经过服务器。</p>
-            <button id="text-start">发起对话</button>
-          </div>
-        </div>
-
+        <p class="label">输入对方的取件码</p>
+        <form id="join" class="join">
+          <input
+            id="code"
+            maxlength="6"
+            placeholder="6 位取件码"
+            autocomplete="off"
+            spellcheck="false"
+            autocapitalize="characters"
+          />
+          <button type="submit">加入</button>
+        </form>
       </section>
 
       <section id="view-room" class="view card" hidden>
@@ -72,11 +73,7 @@
             <span class="muted small">取件码</span>
             <b class="code" id="room-code">------</b>
           </div>
-          <div class="room-actions">
-            <button class="link" id="copy">复制取件码</button>
-            <button class="link" id="copy-link">复制链接</button>
-            <button class="link" id="cancel">离开</button>
-          </div>
+          <button class="link" id="leave">离开</button>
         </div>
 
         <div class="tabs" role="tablist">
@@ -86,27 +83,14 @@
 
         <div id="panel-file">
           <div id="file-idle">
-            <p class="muted small" id="wait-hint">把取件码发给对方</p>
-            <p class="muted" id="wait-sub">等待对方输入取件码…</p>
+            <p class="muted small" id="room-status">等待对方…</p>
 
             <label class="drop" id="drop-wait">
               <input type="file" id="file-wait" hidden multiple />
               <span class="drop-title">选择文件</span>
-              <span class="drop-sub">选好后等对方进来，一连接就开始传</span>
+              <span class="drop-sub">可多选，也可以直接拖进来</span>
             </label>
             <p class="muted small" id="wait-files" hidden></p>
-
-            <form id="join" class="join">
-              <input
-                id="code"
-                maxlength="6"
-                placeholder="或输入对方的取件码"
-                autocomplete="off"
-                spellcheck="false"
-                autocapitalize="characters"
-              />
-              <button type="submit">加入</button>
-            </form>
           </div>
 
           <div id="file-ask" hidden>
@@ -193,15 +177,16 @@
       <section class="about">
         <h2>SixDrop 是什么</h2>
         <p>
-          SixDrop 是一个在浏览器里直接传文件的工具。发送方选好文件会得到一个六位取件码，接收方输入这串码，两个浏览器就建立点对点连接，文件在两端之间直传——
+          SixDrop 是一个在浏览器里直接传文件的工具。打开页面就会得到一个六位取件码，对方输入这串码，两个浏览器就建立点对点连接：文件、文字都在两端之间直传——
           <strong>不经过服务器</strong>，也不用注册或安装任何软件。
         </p>
 
         <h2>怎么用</h2>
         <ol>
-          <li>发送方打开 sixdrop.dev，选择文件（可多选），拿到六位取件码。</li>
-          <li>接收方输入取件码，确认保存位置。</li>
-          <li>传输开始，双方都能看到进度、速度和剩余时间。</li>
+          <li>双方打开 sixdrop.dev，各自都会拿到一个六位取件码。</li>
+          <li>对方输入你的取件码（或者点开你复制的分享链接），两边一起进房间。</li>
+          <li>在「收发文件」里选文件，对方确认保存位置后开始传；想说话就切到「发送文本」。</li>
+          <li>传输中双方都能看到进度、速度和剩余时间，传完还能在同一个房间再发一批。</li>
         </ol>
 
         <h2>常见问题</h2>

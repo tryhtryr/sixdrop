@@ -127,6 +127,23 @@ async function main() {
     await receiver.goto(target);
     step('两个页面已打开');
 
+    // 大厅只显示取件码；对方输码进来之后两边才进房间，文件在房间里选
+    await sender.waitForFunction(
+      () => /^[2-9A-HJ-NP-Z]{6}$/.test(document.getElementById('lobby-code').textContent.trim()),
+      null,
+      { timeout: 20000 },
+    );
+    const code = (await sender.locator('#lobby-code').textContent()).trim();
+    step(`取件码 ${code}`);
+
+    await receiver.fill('#code', code);
+    await receiver.press('#code', 'Enter');
+
+    await sender.waitForSelector('#view-room:not([hidden])', { timeout: 30000 });
+    await receiver.waitForSelector('#view-room:not([hidden])', { timeout: 30000 });
+    assert.equal((await sender.locator('#room-code').textContent()).trim(), code, '房间里的码变了');
+    step('双方都进入房间');
+
     await sender.evaluate((files) => {
       const dt = new DataTransfer();
       for (const f of files) {
@@ -139,17 +156,6 @@ async function main() {
       input.dispatchEvent(new Event('change', { bubbles: true }));
     }, FILES);
 
-    await sender.waitForFunction(
-      () => /^[2-9A-HJ-NP-Z]{6}$/.test(document.getElementById('room-code').textContent.trim()),
-      null,
-      { timeout: 20000 },
-    );
-    const code = (await sender.locator('#room-code').textContent()).trim();
-    step(`取件码 ${code}`);
-
-    await receiver.fill('#code', code);
-    await receiver.press('#code', 'Enter');
-    await receiver.waitForSelector('#view-room:not([hidden])', { timeout: 30000 });
     await receiver.waitForSelector('#file-ask:not([hidden])', { timeout: 30000 });
 
     assert.equal(await receiver.locator('#ask-name').textContent(), FILES[0].name);

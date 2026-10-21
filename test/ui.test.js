@@ -58,15 +58,25 @@ await test('房间面板路由覆盖 waiting / ask / xfer / chat 四态', async 
   }
 });
 
-await test('首页标签和房间标签的 id 不撞车', async () => {
-  for (const id of ['start-tab-file', 'start-tab-text', 'start-panel-file', 'start-panel-text']) {
-    assert.ok(htmlIds.has(id), `缺少 ${id}`);
+await test('大厅只有取件码和输码加入，没有文件/标签', async () => {
+  for (const id of ['view-lobby', 'lobby-code', 'code', 'join', 'copy', 'copy-link']) {
+    assert.ok(htmlIds.has(id), `大厅缺少 ${id}`);
   }
-  // 房间里的 tag-file/tag-text 必须唯一，否则 selectTab 会改错元素
-  const all = [...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]);
-  for (const id of ['tab-file', 'tab-text', 'panel-file', 'panel-text']) {
-    assert.equal(all.filter((v) => v === id).length, 1, `${id} 应该只有一处`);
+  const lobby = /<section id="view-lobby"[\s\S]*?<\/section>/.exec(html);
+  assert.ok(lobby, '找不到大厅 section');
+  assert.ok(!/type="file"/.test(lobby[0]), '大厅不该有文件选择框');
+  assert.ok(!/class="tab/.test(lobby[0]), '大厅不该有标签页');
+  assert.ok(!/view-lobby[\s\S]*?drop/.test(lobby[0].replace(/<[^>]*>/g, ' ')), '大厅不该有拖放区');
+});
+
+await test('房间里有「收发文件 / 发送文本」两个标签', async () => {
+  const room = /<section id="view-room"[\s\S]*?<\/section>/.exec(html);
+  assert.ok(room, '找不到房间 section');
+  for (const id of ['tab-file', 'tab-text', 'panel-file', 'panel-text', 'room-code', 'leave']) {
+    assert.ok(htmlIds.has(id), `房间缺少 ${id}`);
   }
+  assert.match(room[0], /id="tab-file"[^>]*>收发文件/);
+  assert.match(room[0], /id="tab-text"[^>]*>发送文本/);
 });
 
 await test('HTML 里没有残留的占位路径', async () => {

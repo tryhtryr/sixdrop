@@ -16,7 +16,7 @@ No install. No account. Files never touch the server.
 
 ## What it is
 
-Two people open the same web page. One picks files and gets a 6-digit code. The other types that code in. The two browsers connect **directly** over a WebRTC DataChannel and the bytes flow peer-to-peer — Cloudflare only relays the SDP handshake and ICE candidates.
+Two people open the same web page. Each one immediately gets a 6-digit code; the first screen holds nothing but that code and a box for typing the other side's code. Once someone types it in, both sides land in the same room, with two tabs: **Files** and **Text**. The two browsers connect **directly** over a WebRTC DataChannel and the bytes flow peer-to-peer — Cloudflare only relays the SDP handshake and ICE candidates.
 
 ```
  sender                          Cloudflare                    receiver
@@ -34,9 +34,10 @@ Two people open the same web page. One picks files and gets a 6-digit code. The 
 ## Features
 
 - **6-digit pickup code** — no links to copy, no accounts, no email
+- **Landing page is just the code** — your code plus a box to type the other side's code; everything else happens inside the room
 - **Multi-file transfer** — pick a folder on the receiving side and everything lands there
-- **Text messages too** — switch to the *Text* tab and send a sentence without transferring a file
-- **One room, start to finish** — the code is handed out once; the file panel and the text panel are two tabs of the same room, and you can send another batch without a new code
+- **Text messages too** — the room has a *Files* tab and a *Text* tab; switch whenever you like
+- **One room, start to finish** — the code is handed out once; send another batch without a new code
 - **Transfer verification code** — both sides see a short fingerprint of the DTLS certificate, so a MITM cannot silently swap the connection
 - **Explicit failure** — if NAT traversal fails you get a diagnostic instead of a silent hang: candidate types (host / srflx / relay) and a plain-language hint
 - **R2 fallback, opt-in** — when both peers sit behind symmetric NAT, the sender can park the files in Cloudflare R2 with 24-hour auto-delete and share a link instead
