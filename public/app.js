@@ -554,6 +554,19 @@ function wireChannel(dc, isSender) {
         return;
       }
 
+      if (msg.t === 'accept') {
+        s.accepted = true;
+        s.acceptResolver?.(true);
+        s.acceptResolver = null;
+        return;
+      }
+      if (msg.t === 'decline') {
+        s.accepted = false;
+        s.acceptResolver?.(false);
+        s.acceptResolver = null;
+        return;
+      }
+
       // 控制消息和数据块都进同一条链，保证顺序：meta 一定先于它的数据块被处理
       if (msg.t === 'meta') {
         s.chain = s.chain.then(() => onMeta(msg)).catch((err) => fail('接收失败', err?.message || String(err)));
@@ -1551,6 +1564,12 @@ $('accept').addEventListener('click', async () => {
   }
 
   s.done = false;
+  // 优先走数据通道确认：此刻它已经开着，不会因为信令掉线丢失
+  try {
+    if (s.dc && s.dc.readyState === 'open') s.dc.send(JSON.stringify({ t: 'accept' }));
+  } catch {
+    /* 退回信令 */
+  }
   sendSignal({ t: 'accept' });
 
   s.current = { meta: s.meta, received: 0, closed: false, sink: null };
