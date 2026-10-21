@@ -332,9 +332,16 @@ async function onSignal(msg) {
         s.accepted = false;
         s.acceptResolver?.(false);
         s.acceptResolver = null;
-        toast('对方拒绝了这次传输');
-        resetAll();
-        show('start');
+        // 拒绝的只是这一批文件，房间和取件码都要留着
+        s.sending = false;
+        s.busy = false;
+        s.done = true;
+        s.files = [];
+        s.count = 0;
+        s.totalSize = 0;
+        toast('对方拒绝了这批文件，房间还在，可以换一批再发');
+        show('wait');
+        $('wait-sub').textContent = '对方拒绝了这次传输，等你重新选文件';
       }
       break;
 
