@@ -99,6 +99,7 @@ function roomTab(name) {
   // 人已经在文本面板了，未读点就没意义了
   if (text) {
     setChatBadge(false);
+    startKeepalive(); // 只聊天不传文件时，信令也要保活
     setTimeout(() => $('chat-input')?.focus(), 60);
   }
 }
@@ -752,22 +753,15 @@ function sendText(body) {
   return false;
 }
 
-/** 有消息进来时把用户带到文本面板，但正在等确认 / 传文件中只点一个未读点、不抢画面 */
+/**
+ * 有新消息时只点亮「发送文本」上的未读灯，绝不抢当前画面：
+ * 正在收文件的人要继续看进度，闲在文件面板上的人也可能正在看文件列表。
+ * 未读灯在切到文本面板时由 roomTab() 清掉。
+ */
 function ensureChatView() {
   if (chatVisible()) return;
-
-  // 还在等对方点「接收」、或者正在传：不抢画面，用标签上的未读点提示
-  const busy = s.filePanel === 'ask' || (s.filePanel === 'progress' && !s.done);
-  if (busy || $('view-room').hidden) {
-    setChatBadge(true);
-    toast('收到一条文本消息，切到「发送文本」可以边传边聊');
-    return;
-  }
-
-  show('chat');
-  startKeepalive();
-  toast('收到一条文本消息');
-  setTimeout(() => $('chat-input').focus(), 60);
+  setChatBadge(true);
+  toast('收到一条文本消息 · 切到「发送文本」查看');
 }
 
 function appendChat(body, mine) {

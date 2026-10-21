@@ -290,16 +290,36 @@ async function main() {
     );
     step('切标签不影响接收，文件完整');
 
-    /* ---- 10. 房间里发文本，不换房间不换码 ---- */
+    /* ---- 10. 闲在文件面板时收到消息：只亮未读灯，不抢画面 ---- */
+    await receiver.click('#tab-file');
+    await receiver.click('#back'); // 回到文件面板的空闲态
+    await receiver.waitForSelector('#file-idle:not([hidden])', { timeout: 10000 });
+
     await sender.click('#tab-text');
     await sender.fill('#chat-input', '房间里发的消息');
     await sender.press('#chat-input', 'Enter');
+
+    await receiver.waitForFunction(
+      () => !document.getElementById('chat-badge').hidden,
+      null,
+      { timeout: 15000 },
+    );
+    assert.equal(await visible(receiver, '#panel-text'), false, '收到消息不该自动切走');
+    assert.ok(await visible(receiver, '#file-idle'), '收到消息时文件面板应该还在');
+    assertRoomIntact(receiver, code, '闲时收到消息后');
+    step('闲时收到消息：只亮未读灯，不抢画面');
+
+    await receiver.click('#tab-text');
     await receiver.waitForFunction(
       () => [...document.querySelectorAll('#chat-list li')].some((li) => li.textContent.includes('房间里发的消息')),
       null,
       { timeout: 15000 },
     );
-    assert.ok(await visible(receiver, '#panel-text'), '收到文本后应该切到文本面板');
+    assert.equal(
+      await receiver.evaluate(() => document.getElementById('chat-badge').hidden),
+      true,
+      '看了消息之后未读灯还亮着',
+    );
     assertRoomIntact(receiver, code, '收到文本后');
 
     await receiver.fill('#chat-input', '房间还在，回你一句');
