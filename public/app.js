@@ -771,6 +771,13 @@ function waitAccept() {
   if (s.accepted) return Promise.resolve(true);
   return new Promise((resolve) => {
     s.acceptResolver = resolve;
+    // 对方一直不点，别让发送方无限停在「准备中」
+    setTimeout(() => {
+      if (s.acceptResolver === resolve) {
+        s.acceptResolver = null;
+        resolve(false);
+      }
+    }, 60000);
   });
 }
 
@@ -1523,7 +1530,14 @@ $('accept').addEventListener('click', async () => {
       };
     }
   } catch (err) {
-    if (err?.name === 'AbortError') return;
+    if (err?.name === 'AbortError') {
+      // 用户取消了保存对话框：得回一个 decline，否则发送方会一直停在「准备中」
+      sendSignal({ t: 'decline' });
+      toast('已取消接收');
+      resetAll();
+      boot();
+      return;
+    }
     fail('无法创建本地文件', err?.message || String(err));
     return;
   }
