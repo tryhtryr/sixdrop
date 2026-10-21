@@ -24,8 +24,8 @@ const EDGE = [
 const PLACEHOLDER = false; // 实测填完改成 false
 
 const DATA = {
-  one: { label: '场景一', title: '手机 → 电脑', env: '同一 WiFi 6 · 两次实测 22–24 秒', size: '417 MB', time: '23', unit: '秒', speed: '18 MB/s', compare: '网盘要先上传 40 分钟', compareNote: '对方才能开始下', saved: '少等 39 分钟' },
-  two: { label: '场景二', title: '8.3 GB 大文件', env: '按实测速度推算', size: '8.3 GB', time: '7:45', unit: '', speed: '18 MB/s', compare: '网盘要传一整夜', compareNote: '还得开会员才能下', saved: '不用等一整夜' },
+  one: { label: '场景一', title: '手机 → 电脑', env: '同一 WiFi 6 · 实测', size: '417 MB', time: '22', unit: '秒', speed: '19 MB/s', compare: '网盘要先上传 40 分钟', compareNote: '对方才能开始下', saved: '少等 39 分钟' },
+  two: { label: '场景二', title: '8.3 GB 大文件', env: '按实测速度推算', size: '8.3 GB', time: '7:20', unit: '', speed: '19 MB/s', compare: '网盘要传一整夜', compareNote: '还得开会员才能下', saved: '不用等一整夜' },
 };
 
 /* ====================================================== */
