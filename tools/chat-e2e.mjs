@@ -1,5 +1,5 @@
 /**
- * 端到端验证「发送文本」：两个真实浏览器页面互发消息。
+ * 端到端验证「消息」：两个真实浏览器页面互发消息。
  *   node tools/chat-e2e.mjs
  *   BASE_URL=https://sixdrop.dev node tools/chat-e2e.mjs
  */
@@ -92,7 +92,7 @@ try {
   await receiver.click('#tab-text');
   await sender.waitForSelector('#panel-text:not([hidden])', { timeout: 5000 });
   await receiver.waitForSelector('#panel-text:not([hidden])', { timeout: 5000 });
-  step('两端都切到「发送文本」标签');
+  step('两端都切到「消息」标签');
 
   await sender.fill('#chat-input', '你好，这是一条测试消息');
   await sender.press('#chat-input', 'Enter');

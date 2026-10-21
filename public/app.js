@@ -104,7 +104,7 @@ function roomTab(name) {
   }
 }
 
-/** 「发送文本」上的未读点：传文件中收到消息时用它提示 */
+/** 「消息」上的未读点：有新消息时用它提示 */
 function setChatBadge(on) {
   $('chat-badge').hidden = !on;
 }
@@ -754,14 +754,14 @@ function sendText(body) {
 }
 
 /**
- * 有新消息时只点亮「发送文本」上的未读灯，绝不抢当前画面：
+ * 有新消息时只点亮「消息」上的未读灯，绝不抢当前画面：
  * 正在收文件的人要继续看进度，闲在文件面板上的人也可能正在看文件列表。
  * 未读灯在切到文本面板时由 roomTab() 清掉。
  */
 function ensureChatView() {
   if (chatVisible()) return;
   setChatBadge(true);
-  toast('收到一条文本消息 · 切到「发送文本」查看');
+  toast('收到一条文本消息 · 切到「消息」查看');
 }
 
 function appendChat(body, mine) {

@@ -249,7 +249,7 @@ async function main() {
     assert.equal(second.hash, createHash('sha256').update(fillBytes(900_000, 6)).digest('hex'), '第三批哈希不对');
     step('同一房间第三批也发得出去（发送锁已释放）');
 
-    /* ---- 9. 收文件的时候能切到「发送文本」，对方的消息也不会丢 ---- */
+    /* ---- 9. 收文件的时候能切到「消息」，对方的消息也不会丢 ---- */
     await pickFiles(sender, [{ name: 'room-d.bin', size: 64 * 1024 * 1024, seed: 7 }]);
     await receiver.waitForSelector('#file-ask:not([hidden])', { timeout: 30000 });
     await receiver.click('#accept');
@@ -260,7 +260,7 @@ async function main() {
     await sender.fill('#chat-input', '边传边聊试试');
     await sender.press('#chat-input', 'Enter');
 
-    // 接收方不被打断，只在「发送文本」上出现未读点
+    // 接收方不被打断，只在「消息」上出现未读点
     await receiver.waitForFunction(
       () => !document.getElementById('chat-badge').hidden,
       null,

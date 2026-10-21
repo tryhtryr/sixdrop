@@ -16,7 +16,7 @@ No install. No account. Files never touch the server.
 
 ## What it is
 
-Two people open the same web page. Each one immediately gets a 6-digit code; the first screen holds nothing but that code and a box for typing the other side's code. Once someone types it in, both sides land in the same room, with two tabs: **Files** and **Text**. The two browsers connect **directly** over a WebRTC DataChannel and the bytes flow peer-to-peer — Cloudflare only relays the SDP handshake and ICE candidates.
+Two people open the same web page. Each one immediately gets a 6-digit code; the first screen holds nothing but that code and a box for typing the other side's code. Once someone types it in, both sides land in the same room, with two tabs: **Files** and **Messages**. The two browsers connect **directly** over a WebRTC DataChannel and the bytes flow peer-to-peer — Cloudflare only relays the SDP handshake and ICE candidates.
 
 ```
  sender                          Cloudflare                    receiver
@@ -36,7 +36,7 @@ Two people open the same web page. Each one immediately gets a 6-digit code; the
 - **6-digit pickup code** — no links to copy, no accounts, no email
 - **Landing page is just the code** — your code plus a box to type the other side's code; everything else happens inside the room
 - **Multi-file transfer** — pick a folder on the receiving side and everything lands there
-- **Text messages too** — the room has a *Files* tab and a *Text* tab; switch whenever you like
+- **Text messages too** — the room has a *Files* tab and a *Messages* tab; switch whenever you like
 - **One room, start to finish** — the code is handed out once; send another batch without a new code
 - **Transfer verification code** — both sides see a short fingerprint of the DTLS certificate, so a MITM cannot silently swap the connection
 - **Explicit failure** — if NAT traversal fails you get a diagnostic instead of a silent hang: candidate types (host / srflx / relay) and a plain-language hint

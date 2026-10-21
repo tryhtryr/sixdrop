@@ -69,15 +69,15 @@ await test('大厅只有取件码和输码加入，没有文件/标签', async (
   assert.ok(!/view-lobby[\s\S]*?drop/.test(lobby[0].replace(/<[^>]*>/g, ' ')), '大厅不该有拖放区');
 });
 
-await test('房间里有「收发文件 / 发送文本」两个标签', async () => {
+await test('房间里有「收发文件 / 消息」两个标签', async () => {
   const room = /<section id="view-room"[\s\S]*?<\/section>/.exec(html);
   assert.ok(room, '找不到房间 section');
   for (const id of ['tab-file', 'tab-text', 'panel-file', 'panel-text', 'room-code', 'leave']) {
     assert.ok(htmlIds.has(id), `房间缺少 ${id}`);
   }
   assert.match(room[0], /id="tab-file"[^>]*>收发文件/);
-  assert.match(room[0], /id="tab-text"[\s\S]{0,200}?发送文本/);
-  assert.match(room[0], /id="tab-text"[\s\S]{0,300}?id="chat-badge"/, '「发送文本」上应该有未读点');
+  assert.match(room[0], /id="tab-text"[\s\S]{0,200}?消息/);
+  assert.match(room[0], /id="tab-text"[\s\S]{0,300}?id="chat-badge"/, '「消息」上应该有未读点');
 });
 
 await test('HTML 里没有残留的占位路径', async () => {
