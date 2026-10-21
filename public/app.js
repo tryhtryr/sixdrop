@@ -1403,6 +1403,16 @@ function startReceive(code) {
   connect('receiver');
 }
 
+// 带 ?c= 打开时自动加入，省掉手输 6 位码
+(() => {
+  const fromLink = (new URLSearchParams(location.search).get('c') || '').trim().toUpperCase();
+  if (!/^[2-9A-HJ-NP-Z]{6}$/.test(fromLink)) return;
+  $('code').value = fromLink;
+  history.replaceState(null, '', location.pathname);
+  toast(`通过链接加入：${fromLink}`);
+  startReceive(fromLink);
+})();
+
 $('file').addEventListener('change', (ev) => {
   const files = ev.target.files;
   startSend(files);
@@ -1419,6 +1429,21 @@ drop.addEventListener('drop', (ev) => {
   ev.preventDefault();
   drop.classList.remove('over');
   startSend(ev.dataTransfer?.files);
+});
+
+/** 分享链接：对方点开就自动填码加入 */
+function shareLink(code) {
+  return `${location.origin}/?c=${code}`;
+}
+
+$('copy-link').addEventListener('click', async () => {
+  if (!s.code) return;
+  try {
+    await navigator.clipboard.writeText(shareLink(s.code));
+    toast('链接已复制，发给对方点开即可');
+  } catch {
+    toast('复制失败，请手动选中');
+  }
 });
 
 $('join').addEventListener('submit', (ev) => {
