@@ -468,3 +468,63 @@ button.link {
   padding: 10px 16px;
   font-size: 13px;
 }
+
+
+/* ---------- 文件列表 ---------- */
+.file-list {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-list li {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #0f1216;
+  border: 1px solid var(--line);
+}
+
+.file-list .fl-top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.file-list .fl-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-list .fl-size { font-size: 12px; color: var(--muted); }
+
+.file-list .fl-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: #1b2431;
+  overflow: hidden;
+}
+
+.file-list .fl-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #4f8cff, #6fe0c8);
+  transition: width .15s;
+}
+
+.file-list .fl-state {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.file-list li.done .fl-bar i { background: #3ba776; }
+.file-list li.error .fl-state { color: #e06c5a; }

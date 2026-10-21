@@ -98,6 +98,39 @@ function toast(text) {
   }, 2600);
 }
 
+/** 重建文件列表（发送方传整批，接收方按 meta 逐个追加） */
+function resetFileList(items) {
+  const ul = $('file-list');
+  if (!ul) return;
+  ul.innerHTML = '';
+  s.rows = [];
+  (items || []).forEach((it, i) => {
+    const li = document.createElement('li');
+    li.innerHTML =
+      '<div class="fl-top"><span class="fl-name"></span><span class="fl-size"></span></div>' +
+      '<div class="fl-bar"><i></i></div><div class="fl-state"></div>';
+    li.querySelector('.fl-name').textContent = it.name;
+    li.querySelector('.fl-size').textContent = fmtBytes(it.size);
+    li.querySelector('.fl-state').textContent = '等待中';
+    ul.appendChild(li);
+    s.rows[i] = li;
+  });
+}
+
+function rowState(index, text, cls) {
+  const li = s.rows?.[index];
+  if (!li) return;
+  li.querySelector('.fl-state').textContent = text;
+  if (cls) li.classList.add(cls);
+}
+
+function rowProgress(index, done, total) {
+  const li = s.rows?.[index];
+  if (!li) return;
+  const pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
+  li.querySelector('.fl-bar i').style.width = `${pct.toFixed(1)}%`;
+}
+
 function progress(done, total) {
   const pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
   const now = performance.now();
@@ -700,9 +733,13 @@ async function beginSending() {
   // 设成一半，发送端就能在管道没空之前补货。
   dc.bufferedAmountLowThreshold = Math.floor(LOW_WATER);
 
+  resetFileList(s.files.map((f) => ({ name: f.name, size: f.size })));
+
   try {
     for (let i = 0; i < s.files.length; i += 1) {
       const file = s.files[i];
+      s.currentRow = i;
+      rowState(i, '传输中');
 
       // 文件可能是连上之后才选的，所有 meta 都在这里发
       {
@@ -755,8 +792,12 @@ async function beginSending() {
         offset += buf.byteLength;
         s.sentBytes += buf.byteLength;
         progress(offset, file.size);
+        rowProgress(i, offset, file.size);
         overallLine(s.sentBytes, s.totalSize, i);
       }
+
+      rowState(i, '已完成', 'done');
+      rowProgress(i, file.size, file.size);
 
       // 空文件没有数据块，靠这一条让接收端收尾
       dc.send(JSON.stringify({ t: 'eof', i }));
@@ -903,6 +944,19 @@ function uniqueName(name) {
 }
 
 async function onMeta(meta) {
+  if ((meta.index || 0) === 0) {
+    const total = meta.total || 1;
+    const items = [{ name: meta.name, size: meta.size }];
+    for (let k = 1; k < total; k += 1) items.push({ name: `等待第 ${k + 1} 个`, size: 0 });
+    resetFileList(items);
+  } else if (s.rows?.[meta.index]) {
+    const li = s.rows[meta.index];
+    li.querySelector('.fl-name').textContent = meta.name;
+    li.querySelector('.fl-size').textContent = fmtBytes(meta.size);
+  }
+  s.currentRow = meta.index || 0;
+  rowState(s.currentRow, '接收中');
+
   // 第一个文件交给用户确认；后面的自动接着收
   if ((meta.index || 0) === 0) {
     askToReceive(meta);
@@ -951,6 +1005,7 @@ async function writeOne(buf) {
   cur.received += buf.byteLength;
   s.receivedTotal += buf.byteLength;
   progress(cur.received, cur.meta.size);
+  rowProgress(cur.meta.index || 0, cur.received, cur.meta.size);
   overallLine(s.receivedTotal, s.totalSize, cur.meta.index || 0);
 }
 
