@@ -10,6 +10,7 @@ const JOIN_TIMEOUT = 8000;
 const APPROVE_TIMEOUT = 60000;
 const CONNECT_TIMEOUT = 30000;
 const DISCOVER_KEY = 'sixdrop.discover';
+const ROOM_KEY = 'sixdrop.room';
 
 // 国内可用的 STUN 放前面；带 AAAA 的放在后面专门探 IPv6
 // 手机流量下双方大概率都在 CGNAT 后面，IPv6 是唯一可能绕过去的路
@@ -250,6 +251,36 @@ function discoverOn() {
   }
 }
 
+/**
+ * 「同一网络房间」：两台设备输同一个名字就按名字分组。
+ * 双 WAN / 多出口 / 一台 IPv4 一台 IPv6 的网络里，按出口 IP 分组天然对不上，
+ * 这时候靠一个双方约定的房间名最稳。
+ */
+function roomName() {
+  try {
+    return String(localStorage.getItem(ROOM_KEY) || '')
+      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .trim()
+      .slice(0, 24);
+  } catch {
+    return '';
+  }
+}
+
+function setRoomName(name) {
+  const clean = String(name || '')
+    .replace(/[\u0000-\u001f\u007f]/g, '')
+    .trim()
+    .slice(0, 24);
+  try {
+    if (clean) localStorage.setItem(ROOM_KEY, clean);
+    else localStorage.removeItem(ROOM_KEY);
+  } catch {
+    /* 忽略 */
+  }
+  return clean;
+}
+
 function setLobbyHint(text) {
   const el = $('lobby-hint');
   el.textContent = text || '';
@@ -263,6 +294,9 @@ function refreshDiscoverUI() {
   toggle.textContent = `同一网络可见：${on ? '开' : '关'}`;
   toggle.classList.toggle('on', on);
   $('self-name').textContent = deviceName();
+
+  const room = roomName();
+  $('lobby-room').textContent = room ? `同一网络房间：${room}` : '同一网络房间：自动';
 
   const hasPeers = s.lastRooms.length > 0;
   $('discover').hidden = !on;
@@ -278,8 +312,9 @@ function refreshDiscoverUI() {
   }
 
   if (!hasPeers) {
-    $('lobby-empty').textContent =
-      '同一网络里还没发现设备。确认两台在同一个 Wi-Fi（手机用流量会算成不同网络）；仍然看不到就用上面的取件码，最稳。';
+    $('lobby-empty').textContent = room
+      ? `「${room}」里还没有其他设备。让对方也点「同一网络房间」输入同一个名字。`
+      : '同一网络里还没发现设备。双 WAN、两台走不同运营商、或一台 IPv4 一台 IPv6 时，按 IP 是对不上的 —— 点下面的「同一网络房间」，两台输同一个名字就行。';
     $('lobby-empty').hidden = false;
     $('lobby-actions').hidden = false;
     setLobbyHint('');
@@ -294,11 +329,13 @@ function refreshDiscoverUI() {
 /** 网络诊断：两台设备只有「网络组」一样才可能互相发现 */
 async function showNetworkDiag() {
   try {
-    const res = await fetch('/api/lobby/whoami');
+    const res = await fetch(`/api/lobby/whoami?room=${encodeURIComponent(roomName())}`);
     if (!res.ok) throw new Error('诊断接口不可用');
     const { tag, family } = await res.json();
     setLobbyHint(
-      `网络组 ${tag} · ${family}。两台设备这个值必须一样；不一样就说明没走同一个出口（比如一台 IPv4、一台 IPv6，或者手机在用流量）。`,
+      roomName()
+        ? `网络组 ${tag}（房间「${roomName()}」）。两台设备房间名一样就会是同一个组。`
+        : `网络组 ${tag} · ${family}。两台设备这个值必须一样；不一样就说明没走同一个出口 —— 点「同一网络房间」给两台起同一个名字最稳。`,
     );
   } catch (err) {
     setLobbyHint(err?.message || '诊断失败');
@@ -315,14 +352,19 @@ async function registerSelf() {
     await fetch('/api/lobby/register', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code, name: deviceName(), platform: platformLabel() }),
+      body: JSON.stringify({
+        code,
+        name: deviceName(),
+        platform: platformLabel(),
+        room: roomName(),
+      }),
     });
   } catch {
     /* 大厅不可用不影响手动输码 */
   }
 }
 
-async function unregisterSelf() {
+async function unregisterSelf(roomOverride) {
   // 访客不能把房主的房间从列表里撤掉
   if (s.role !== 'sender') return;
   const code = s.code;
@@ -331,7 +373,10 @@ async function unregisterSelf() {
     await fetch('/api/lobby/hide', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({
+        code,
+        room: roomOverride === undefined ? roomName() : roomOverride,
+      }),
     });
   } catch {
     /* 忽略 */
@@ -359,7 +404,10 @@ async function refreshLobbyList() {
   }
 
   try {
-    const res = await fetch(`/api/lobby?exclude=${encodeURIComponent(s.code)}`);
+    const room = roomName();
+    const res = await fetch(
+      `/api/lobby?exclude=${encodeURIComponent(s.code)}&room=${encodeURIComponent(room)}`,
+    );
     if (!res.ok) return;
     const data = await res.json();
     renderLobbyList(data.rooms || []);
@@ -450,7 +498,7 @@ async function requestJoin(id, btn, age) {
     const res = await fetch('/api/lobby/invite', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, room: roomName() }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -1993,7 +2041,9 @@ function startReceive(code, { discover = false } = {}) {
   history.replaceState(null, '', location.pathname);
 
   try {
-    const res = await fetch(`/api/invite/${encodeURIComponent(token)}`);
+    const res = await fetch(
+      `/api/invite/${encodeURIComponent(token)}?room=${encodeURIComponent(roomName())}`,
+    );
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(
@@ -2119,6 +2169,26 @@ $('discover-toggle').addEventListener('click', async () => {
   } else {
     await unregisterSelf();
   }
+});
+
+$('lobby-room').addEventListener('click', async () => {
+  const current = roomName();
+  const next = window.prompt(
+    '两台设备输同一个房间名就能互相发现（留空＝按出口 IP 自动）。\n双 WAN、两台走不同运营商、或一台 IPv4 一台 IPv6 时，用房间名最稳。',
+    current,
+  );
+  if (next === null) return;
+
+  const prev = current;
+  setRoomName(next);
+  refreshDiscoverUI();
+
+  // 换房间 = 换大厅分组：先把旧的撤掉，再在新分组里登记
+  if (roomName() !== prev) await unregisterSelf(prev);
+  await registerSelf();
+  await refreshLobbyList();
+
+  toast(roomName() ? `已进入房间「${roomName()}」` : '已改回按出口 IP 自动');
 });
 
 $('lobby-refresh').addEventListener('click', async () => {

@@ -109,6 +109,10 @@ body {
   margin-top: 0;
 }
 
+.lobby-foot .link + .link {
+  margin-left: 2px;
+}
+
 .lobby-foot .muted {
   margin: 2px 0 0;
 }
