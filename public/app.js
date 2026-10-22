@@ -279,7 +279,7 @@ function refreshDiscoverUI() {
 
   if (!hasPeers) {
     $('lobby-empty').textContent =
-      '还没发现同一网络里的其他设备 —— 在另一台设备上打开 SixDrop。手机请连同一个 Wi-Fi，用流量会算成不同网络。';
+      '同一网络里还没发现设备。确认两台在同一个 Wi-Fi（手机用流量会算成不同网络）；仍然看不到就用上面的取件码，最稳。';
     $('lobby-empty').hidden = false;
     $('lobby-actions').hidden = false;
     setLobbyHint('');
@@ -297,7 +297,9 @@ async function showNetworkDiag() {
     const res = await fetch('/api/lobby/whoami');
     if (!res.ok) throw new Error('诊断接口不可用');
     const { tag, family } = await res.json();
-    setLobbyHint(`网络组 ${tag} · ${family}；两台设备这个值一样才能互相发现`);
+    setLobbyHint(
+      `网络组 ${tag} · ${family}。两台设备这个值必须一样；不一样就说明没走同一个出口（比如一台 IPv4、一台 IPv6，或者手机在用流量）。`,
+    );
   } catch (err) {
     setLobbyHint(err?.message || '诊断失败');
   }

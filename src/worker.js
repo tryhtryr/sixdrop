@@ -126,6 +126,9 @@ async function openSocket(request, env, url) {
 
 // 加了盐的哈希当 DO 名：既能分组，又不把 IP 写进存储/日志
 const SUBNET_SALT = 'sixdrop-lobby-v1';
+// 大厅的接口契约一变就 +1：已活着的 DO 实例会继续跑旧代码，
+// 换一个命名空间就等于换一批新实例，旧的自然过期。
+const LOBBY_VERSION = 'v2';
 const INVITE_RE = /^[2-9A-HJ-NP-Z]{12}$/;
 
 /** IPv6 抹到 /64：同一个 Wi-Fi 下每台设备地址不同，只有前缀一样 */
@@ -154,7 +157,7 @@ async function subnetKey(request, env) {
   const group = raw.includes(':') ? `v6:${ipv6Prefix64(raw)}` : `v4:${raw}`;
   const digest = await crypto.subtle.digest(
     'SHA-256',
-    new TextEncoder().encode(`${env.SUBNET_SALT || SUBNET_SALT}|${group}`),
+    new TextEncoder().encode(`${env.SUBNET_SALT || SUBNET_SALT}|${LOBBY_VERSION}|${group}`),
   );
   return [...new Uint8Array(digest)]
     .map((b) => b.toString(16).padStart(2, '0'))
@@ -171,7 +174,18 @@ async function listLobby(request, env, url) {
   const exclude = (url.searchParams.get('exclude') || '').toUpperCase();
   const stub = await lobbyOf(request, env);
   const qs = exclude ? `?exclude=${encodeURIComponent(exclude)}` : '';
-  return stub.fetch(`https://lobby.internal/list${qs}`);
+  const res = await stub.fetch(`https://lobby.internal/list${qs}`);
+  if (!res.ok) return res;
+
+  // 兼容还在跑旧代码的 Lobby 实例：旧版本只有 device 字段
+  const data = await res.json();
+  const rooms = (data.rooms || []).map((room) => ({
+    id: room.id,
+    name: room.name || room.device || '未知设备',
+    platform: room.platform || '',
+    age: Number(room.age) || 0,
+  }));
+  return json({ rooms, tag: data.tag });
 }
 
 async function registerLobby(request, env) {
@@ -191,14 +205,12 @@ async function registerLobby(request, env) {
   if (!alive.ok) return json({ error: 'no such room' }, 404);
 
   const stub = await lobbyOf(request, env);
+  const name = String(body.name || body.device || '');
   return stub.fetch('https://lobby.internal/register', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      code,
-      name: String(body.name || body.device || ''),
-      platform: String(body.platform || ''),
-    }),
+    // device 是给「还没更新的 Lobby 实例」留的兼容字段
+    body: JSON.stringify({ code, name, device: name, platform: String(body.platform || '') }),
   });
 }
 

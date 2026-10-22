@@ -11,7 +11,7 @@
 当前 HEAD：`fix(lobby): only advertise the room after the signalling socket is up` 之后的小提交
 （见 `git log`）。
 
-**线上已部署这一版**：2026-10-22，Version ID `04efccb6-5ed1-4d76-b37b-2465975624b0`，
+**线上已部署这一版**：2026-10-22，Version ID `1edd56aa-6e18-484f-a16d-2ce9f0271a34`，
 `env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
 （e2e / chat-e2e / room-e2e / discover-e2e）。
 
@@ -20,30 +20,24 @@
 
 ## 二、当前界面结构（大厅 + 房间）
 
-**大厅**（`view-lobby`，打开页面就是它）：参考 PairDrop 的做法——设备优先，取件码收进弹窗。
+**大厅**（`view-lobby`，打开页面就是它）：取件码和同网设备**同时在场**（这一版按用户反馈，
+从 PairDrop 的「设备优先」改回了「码 + 设备一起显示」）。
 
 ```
 ┌ [有人敲门：某某 想加入你的房间  [同意][拒绝]]   ← 只在有人申请时出现
-│  （同心圆装饰背景）
-│         [💻 王工的 MacBook]   [📱 小李的 iPhone]     ← 同网设备，点一下 = 申请加入
-│                      刚刚
-│  ──────────────────────────────────────────────
-│  (◔) 你的设备：Chrome · Windows
-│       [同一网络可见：开]  [配对新设备]
-└
-```
-
-「配对新设备」是个 `<dialog>`（`#pair-dialog`），取件码和输码都在里面：
-
-```
-┌ 配对新设备                                关闭 ┐
 │ 把这串取件码发给对方，对方输入就能进来
 │            A B C 1 2 3
 │  [复制取件码]   [复制链接]
 │  ─────────────── 或 ───────────────
 │  输入对方的取件码
 │  [ 6 位取件码          ] [加入]
-└──────────────────────────────────────────────┘
+│        对方会看到你叫 温柔的狐狸  改名
+│        同一网络可见：开
+│  ───────────── 同一网络 ─────────────
+│  [💻] 小李的 iPhone   Windows · Edge   刚刚  [申请加入]
+│  [💻] 勇敢的松鼠      Windows · Edge   刚刚  [申请加入]
+│  （没设备时：同一网络里还没发现设备… + 刷新 / 网络诊断）
+└
 ```
 
 **房间**（`view-room`）：输码进来（或对方输你的码 / 同网被同意）之后才有。
@@ -60,29 +54,37 @@
 | 事件 | 结果 |
 |---|---|
 | 打开页面 | 建房拿码，停在大厅（`show('lobby')`）；**WS `joined` 之后**才登记到同网大厅并开始轮询 |
-| 点大厅里的设备方块 | 换一次性 invite → 跳 `/?invite=…` → 换码时校验房主在线 → 连 `via=discover`（pending） |
+| 点同网设备行的「申请加入」 | 换一次性 invite → 跳 `/?invite=…` → 换码时校验房主在线 → 连 `via=discover`（pending） |
 | 房主点「同意」 | 访客被 admit，两边进同一个房间；房主进房间时撤销自己的登记 |
 | 房主点「拒绝」 | 访客收到 reject，回大厅重新开一间 |
-| 「配对新设备」里输码 | 跳 `/?c=CODE`，直接进房间（`startReceive()`） |
+| 输入取件码 | 跳 `/?c=CODE`，直接进房间（`startReceive()`） |
 | 对方输码进房（`peers` n≥2） | 房主自动进房间（`enterRoom()`），码不变 |
 | 点「离开」 | `leaveRoom()`：发 bye → 撤销登记 → 回大厅并**换一个新码** |
 | 传完点「返回」 | `show('room')`，回房间文件面板，码不变 |
 
-大厅的 UI 元素：`#peer-grid`（设备方块，`.peer-tile` + 图标 + 名字 + 多久之前）、
-`#lobby-empty`（没设备时的空状态）、`#lobby-hint`（顶部一句提示）、`#self-tile`
-（`#self-name` 你的设备名、`#discover-toggle` 可见开关、`#pair-open` 打开配对弹窗）、
-`#pair-dialog`（`#lobby-code` + `#copy`/`#copy-link` + `#join`/`#code`）。
+大厅的 UI 元素：`#lobby-code`（取件码）、`#copy`/`#copy-link`、`#join`/`#code`、
+`#self-name` + `#rename`（对方看到的名字，可改）、`#discover-toggle`（同网可见开关）、
+`#discover` 里的 `#lobby-list`（行式：图标 + 名字 + 平台 + 多久之前 + 申请加入）、
+`#lobby-empty`（空状态）、`#lobby-actions`（`#lobby-refresh` / `#lobby-diag`）、
+`#knock`（房主审批条）。
 
 ### 同网发现（阶段 3，已上线）
 
 - **分组键**：`CF-Connecting-IP` 的 IPv4 完整地址 / IPv6 的 `/64` 前缀，
-  加盐 SHA-256 后当前大厅 DO 的名字（`src/worker.js` 的 `subnetKey()`）。
+  加盐 SHA-256（再拼一个 `LOBBY_VERSION`）后当前大厅 DO 的名字（`src/worker.js` 的 `subnetKey()`）。
   本地没有这个头，统一按 `dev` 分组 → 本机所有页面天然同网。
-- **存储**：`src/lobby.js`，只存 `{ id, code, device, ts }`；对外只给 `id / device / age`，
-  **取件码从来不进列表**。条目 3 分钟不续期就过期（前端在大厅每 20 秒心跳续期）。
+- **名字**：每台设备本地随机一个「形容词 + 动物」（`sixdrop.name`），可改名；
+  平台（`Android · Edge` 这种）只做副标题，识别靠名字。**Android Edge 的 UA 是 `EdgA/`**，
+  已经单独匹配（之前被识别成 Chrome）。
+- **存储**：`src/lobby.js`，只存 `{ id, code, name, platform, ts }`；对外只给
+  `id / name / platform / age`，**取件码从来不进列表**。条目 3 分钟不续期就过期
+  （前端在大厅每 20 秒心跳续期）。
 - **加入**：`POST /api/lobby/invite {id}` 换 12 位一次性 token（60 秒有效、只能用一次），
   页面拿 token 换回码后才连房间，连接带 `via=discover` → 房间侧 `admitted=false`，
   只允许发 `knock`，房主 `admit` 之后才转发信令（这套在 `src/room.js`，本来就有测试）。
+- **网络诊断**：`GET /api/lobby/whoami` 回 `{ tag, family }`（短哈希 + IPv4/IPv6）。
+  两台设备 tag 一样才可能互相发现；**IPv4 和 IPv6 是两组，永远互相看不到**（浏览器没法强制协议族），
+  这种情况用取件码。手机用流量也会换组。
 - **幽灵条目**：大厅条目 3 分钟过期，但房主一断线（关页面、强杀、切网）房间那边就会
   用 `seat`（Worker 算好的大厅 key，通过 `/ws` 传进来）让 LOBBY 把条目 hide 掉，
   所以正常情况下列表是干净的（实测硬杀 context 后 ~5 秒内消失，也就是下一次轮询）。
@@ -253,7 +255,9 @@ BASE_URL=https://sixdrop.dev node tools/discover-e2e.mjs
 | **未准入的连接不能广播 peer-joined** | 否则房主在审批前就被拉进房间，然后自动拒掉客人（已修） |
 | **邀请是一次性的** | `GET /api/invite/<token>` 换过就删；页面刷新后要重新申请 |
 | **同网列表有 3 分钟有效期** | 前端在大厅每 20 秒心跳续期；关页面用 `sendBeacon` 撤销。测试里用带随机后缀的设备名，别和残留条目撞名 |
-| **Durable Object 不随 deploy 立刻换代码** | 已活着的 DO 实例会继续跑旧代码（这次给 Lobby 的 invite 响应加 `code` 就踩了：Worker 拿到 undefined，全被当成 ghost）。要么等它被驱逐，要么别让新代码依赖旧的 DO 响应字段 —— 现在的 `/alive` 校验放在 redeem 端，不依赖新字段 |
+| **Durable Object 不随 deploy 立刻换代码** | 已活着的 DO 实例会继续跑旧代码（这次给 Lobby 的 invite 响应加 `code` 就踩了：Worker 拿到 undefined，全被当成 ghost）。要么等它被驱逐，要么别让新代码依赖旧的 DO 响应字段。大厅的响应字段一改，就把 `src/worker.js` 里的 `LOBBY_VERSION` +1，等于换一批全新的 DO 实例 |
+| **大厅的字段契约由 Worker 兜住** | `listLobby()` 会把旧实例的 `device` 归一成 `name`，`register` 同时发 `name` 和 `device`；这样新旧 Lobby 实例混着跑也不会出现「未知设备」 |
+| **IPv4 / IPv6 是两个大厅** | 分组键按地址族分开：一台走 v4、一台走 v6 永远互相看不到（浏览器里没法强制协议族）。大厅的「网络诊断」显示网络组和地址族，两台对不上就用取件码 |
 | **大厅条目要等 WS 连上才登记** | 否则别人点进来时 `/alive` 还查不到 sender，一拍就被当成 ghost 撤掉（生产上抓到过一次竞态） |
 | **`[hidden]` 靠 CSS** | `style.css` 里 `[hidden] { display: none !important }`，别用 `display` 覆盖它 |
 
