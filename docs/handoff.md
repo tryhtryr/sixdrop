@@ -1,4 +1,4 @@
-# 交接文档（2026-10-22 · 大厅 + 房间）
+# 交接文档（2026-10-22 · 大厅 + 房间 + 同网发现）
 
 > 给下一个上下文窗口看。目标：不用重新摸索，直接接下一件事。
 
@@ -8,9 +8,15 @@
 **仓库：<https://github.com/tryhtryr/sixdrop>**（无 LICENSE，public 但非开源）
 **本地：`E:\sixdrop`**（唯一副本）
 
-当前 HEAD：见 `git log`（`feat(ui): one lobby, one room` 及其后的文档提交）。
-线上已部署同一份 `public/`，部署记录（Version ID / 时间）每次 deploy 的输出里都有，
-写进 commit message 或本文档即可。
+当前 HEAD：`8503688 feat(discover): same-network lobby with invite + host approval`
+（`git log` 里这一条及之后的小提交）。
+
+**线上已部署这一版**：2026-10-22，Version ID `0051689c-9551-4c31-b855-dfa376af1faa`，
+新增 `env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
+（e2e / chat-e2e / room-e2e / discover-e2e）。
+
+**注意**：本地 `main` 和 `origin/main` 已经分叉（远端还停在 slice2 那几次提交），
+本地这台机器的部署就是从本地目录 `wrangler deploy` 的，所以**线上对应当前本地工作树**。
 
 ## 二、当前界面结构（大厅 + 房间）
 

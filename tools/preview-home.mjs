@@ -13,7 +13,8 @@ const EDGE = [
 
 const browser = await chromium.launch(EDGE ? { executablePath: EDGE, headless: true } : { headless: true });
 const page = await browser.newPage({ viewport: { width: 460, height: 760 }, deviceScaleFactor: 2 });
-await page.goto(BASE, { waitUntil: 'networkidle' });
+// 大厅每 5 秒轮询一次同网列表，等 networkidle 会永远等不到
+await page.goto(BASE, { waitUntil: 'domcontentloaded' });
 
 // 等取件码真的出来，别截到一个 ------ 的空大厅
 await page.waitForFunction(
