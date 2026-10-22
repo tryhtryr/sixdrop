@@ -8,10 +8,10 @@
 **仓库：<https://github.com/tryhtryr/sixdrop>**（无 LICENSE，public 但非开源）
 **本地：`E:\sixdrop`**（唯一副本）
 
-当前 HEAD：`8503688 feat(discover): same-network lobby with invite + host approval`
+当前 HEAD：`8254629 fix(room): reject discovery joins when the host is already gone`
 （`git log` 里这一条及之后的小提交）。
 
-**线上已部署这一版**：2026-10-22，Version ID `0051689c-9551-4c31-b855-dfa376af1faa`，
+**线上已部署这一版**：2026-10-22，Version ID `c5fa6c4b-4580-4f16-9678-06f7b30d8835`，
 新增 `env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
 （e2e / chat-e2e / room-e2e / discover-e2e）。
 
