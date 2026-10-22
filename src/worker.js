@@ -89,6 +89,11 @@ export default {
       return out;
     }
 
+    // 静态页面的好看 URL：/about → /about.html（避免 Assets 的目录重定向）
+    if (url.pathname === '/about' || url.pathname === '/about/') {
+      return env.ASSETS.fetch(new Request(new URL('/about.html', url.origin), request));
+    }
+
     // 其余全部交给静态资源（命中静态文件不计 Worker 请求，也不消耗额度）
     return env.ASSETS.fetch(request);
   },

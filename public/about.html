@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>关于 SixDrop：浏览器点对点传文件的原理、用法和限制</title>
+    <meta
+      name="description"
+      content="SixDrop 用 6 位取件码让两个浏览器点对点传文件，文件不经过服务器。这篇文章讲清楚它的原理、两种用法、速度由什么决定、打不通之后怎么办，以及它不适合的场景。"
+    />
+    <link rel="canonical" href="https://sixdrop.dev/about" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="关于 SixDrop：浏览器点对点传文件的原理、用法和限制" />
+    <meta
+      property="og:description"
+      content="6 位取件码 + WebRTC 直连：文件不经过服务器。讲清楚原理、用法、速度因素、失败之后的三条路，以及它的局限。"
+    />
+    <meta property="og:url" content="https://sixdrop.dev/about" />
+    <meta property="og:site_name" content="SixDrop" />
+    <meta name="twitter:card" content="summary" />
+    <style>
+      :root {
+        --bg: #0d0f12;
+        --card: #16181d;
+        --line: #262a32;
+        --text: #e8eaed;
+        --muted: #8b919c;
+        --accent: #4f8cff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: radial-gradient(1200px 600px at 50% -10%, #1a2030 0%, var(--bg) 55%);
+        color: var(--text);
+        font: 16px/1.85 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        padding: 56px 20px 96px;
+      }
+      .wrap { max-width: 760px; margin: 0 auto; }
+      .top { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
+      .top img { width: 36px; height: 36px; }
+      .top a { color: var(--text); font-weight: 700; text-decoration: none; font-size: 18px; }
+      .top a:hover { color: var(--accent); }
+      h1 { font-size: 34px; line-height: 1.35; margin: 0 0 18px; letter-spacing: -0.01em; }
+      h2 { font-size: 23px; margin: 44px 0 14px; padding-top: 8px; }
+      h3 { font-size: 17px; margin: 26px 0 8px; }
+      p, li { color: #d3d8e0; }
+      .lead { font-size: 18px; color: #b9c1cd; margin-bottom: 8px; }
+      .meta { color: var(--muted); font-size: 14px; margin-bottom: 34px; }
+      a { color: var(--accent); }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 22px;
+        margin: 22px 0;
+      }
+      .card p:first-child { margin-top: 0; }
+      .card p:last-child { margin-bottom: 0; }
+      table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 15px; }
+      th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      th { color: var(--muted); font-weight: 600; }
+      code { background: #1d2026; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 14px; }
+      pre { background: #1d2026; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; }
+      pre code { border: 0; padding: 0; background: none; }
+      .faq dt { font-weight: 700; margin-top: 22px; }
+      .faq dd { margin: 8px 0 0; color: #c7cdd7; }
+      .foot { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+      .foot a { margin-right: 16px; }
+      @media (max-width: 560px) {
+        h1 { font-size: 27px; }
+        h2 { font-size: 20px; }
+      }
+    </style>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "SixDrop 是什么？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "SixDrop 是一个打开网页就能用的点对点传文件工具：一方把 6 位取件码报给另一方，对方输入后两个浏览器建立 WebRTC 直连，文件从一台设备直接流到另一台，不经过服务器。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "文件会上传到服务器吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "直连成功时不会：文件只在两个浏览器之间流动，服务器只负责交换建立连接所需的信令（SDP/ICE）。只有打洞失败、用户主动选择「改用中转」时，文件才会临时存到 Cloudflare R2，最多 24 小时自动删除，也可以手动立即删除。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "为什么有时候连不上？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "常见于双方都在对称 NAT 后面（公司网、校园网、部分移动网络），或者一方走 IPv4、另一方走 IPv6。此时打洞会失败，页面会给出候选统计（host / srflx / relay）和失败类型，并提示换网络、用同一个 Wi-Fi 重试，或者改用中转。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "传文件的速度由什么决定？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "由双方网络和设备共同决定：同一个 Wi-Fi 可能走局域网直连，是最快的一档；跨网络需要打洞，能不能打通取决于两边 NAT；公司网/校园网常是对称 NAT；接收端 Chrome/Edge 能边收边写盘，Firefox/Safari 先收进内存，单文件建议不超过 1 GB。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "有文件大小限制吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "直连模式没有硬性上限，取决于接收方的磁盘空间；Firefox 与 Safari 不支持流式写盘，建议单文件不超过 1 GB。中转模式单文件上限 5 TiB。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "需要注册或安装吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "不需要注册、不需要安装客户端，电脑和手机的浏览器打开网页就能用。同一个网络会直接列出对方设备，不同网络用 6 位取件码或分享链接。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "取件码会被别人猜到吗？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "取件码是 6 位、32 个字符表（去掉 0/1/I/O 等易混字符），只在房间存活期内有效；用完之后可以点「离开」换一个新码。建议把码只发给要传文件的人。"
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "为什么不做会员提速？",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "因为传输是点对点的，速度不经过我们的服务器，也不存在「下载排队」这一层。服务器只转发信令，所以没有必要做会员限速或提速包。"
+                }
+              }
+            ]
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "SixDrop", "item": "https://sixdrop.dev/" },
+              { "@type": "ListItem", "position": 2, "name": "关于与常见问题", "item": "https://sixdrop.dev/about" }
+            ]
+          },
+          {
+            "@type": "WebApplication",
+            "name": "SixDrop",
+            "url": "https://sixdrop.dev/",
+            "applicationCategory": "UtilitiesApplication",
+            "operatingSystem": "Any (web browser)",
+            "description": "用 6 位取件码在两个浏览器之间点对点传文件，文件不经过服务器，免注册免安装。",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <img src="/icon.svg" alt="SixDrop" width="36" height="36" />
+        <a href="/">SixDrop</a>
+      </div>
+
+      <h1>关于 SixDrop：浏览器点对点传文件的原理、用法和限制</h1>
+      <p class="lead">
+        SixDrop 是一个打开网页就能用的传文件工具：一方把 6 位取件码报给另一方，两个浏览器建立直连，文件从一台设备直接流到另一台。
+      </p>
+      <p class="meta">更新于 2026 年 10 月</p>
+
+      <h2>它解决的是什么问题</h2>
+      <p>
+        平时传一个文件，通常要先把它搬到某个中间服务器上：网盘先上传、对方再下载；聊天工具会压缩图片和视频，还有大小限制。中间这一跳，往往比传输本身更花时间。
+      </p>
+      <p>
+        如果两个浏览器能直接对话，这一跳就可以省掉。WebRTC 的 DataChannel 就是为此设计的：它能在两个浏览器之间开一条点对点的通道，数据不经过网站服务器。
+      </p>
+
+      <h2>怎么用</h2>
+      <p>打开 <a href="/">sixdrop.dev</a>，有两种进入方式：</p>
+      <table>
+        <thead>
+          <tr><th>场景</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>两台设备在同一个网络</td>
+            <td>大厅里会直接列出对方的设备，点「申请加入」，对方点「同意」，一起进入房间</td>
+          </tr>
+          <tr>
+            <td>不在同一个网络</td>
+            <td>一方复制链接或报 6 位取件码，另一方在网页里输入，进入同一个房间</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        进房间后选文件（可以多选），对方确认并选择保存位置，就开始传了。传完房间还在：可以再发一批，也可以切到「消息」发文字，文字走同一条连接。
+      </p>
+
+      <h2>为什么文件不经过服务器</h2>
+      <p>
+        连接建立分两步：先通过 Cloudflare 上的一个房间服务交换 SDP 和 ICE 候选（这些只是「怎么找到对方」的信息，不含文件内容），然后在两个浏览器之间做 NAT 穿透，打出一条直连通道。数据面走的始终是这条点对点通道。
+      </p>
+      <div class="card">
+        <p>
+          <strong>默认不走中继。</strong>打洞失败时会明确失败，而不是悄悄把文件传到云上。失败页会给出候选统计和失败类型，并给出三条后续：换网络重试、用同一个取件码重连、或者主动选择「改用中转」。
+        </p>
+      </div>
+
+      <h2>速度由什么决定</h2>
+      <p>传输速度不是一个固定值，它至少受这几件事影响：</p>
+      <ul>
+        <li><strong>在不在同一个网络</strong>：同一个 Wi-Fi 下可能走局域网直连，通常是最快的一档；跨网络要先打洞，打通了才谈速度。</li>
+        <li><strong>两边各是什么网络</strong>：有线千兆 &gt; Wi-Fi 6 &gt; Wi-Fi 5 &gt; 4G/5G，手机往往是最慢的一环；公司网、校园网、部分移动网络常是对称 NAT。</li>
+        <li><strong>出口是否固定</strong>：双 WAN 分流、CGNAT、VPN 都可能让同一台设备两次连接换一个出口地址。</li>
+        <li><strong>文件本身和对方设备</strong>：一个大文件比几百个小文件更顺；接收端 Chrome/Edge 能边收边写盘，Firefox/Safari 先收进内存；手机发热、后台省电、磁盘慢都会拖速度。</li>
+      </ul>
+      <p>
+        所以这里不做「不限速」这类承诺：没有会员限速这一层，但上限由你我的网络决定。传的过程中如果对方接不住（发送队列满），页面会停下来等，而不是直接判失败。
+      </p>
+
+      <h2>安全与隐私</h2>
+      <ul>
+        <li>直连通道由 DTLS 加密，两端会显示同一个 8 位校验码（双方 DTLS 指纹的哈希），对一下就知道没有中间人。</li>
+        <li>取件码只在房间存活期内有效，用完后可以点「离开」换新码；建议只发给要传文件的人。</li>
+        <li>不建立账号、不保存传输历史；关掉页面，房间就结束了。</li>
+        <li>只有主动选择「改用中转」时，文件才会临时存到 Cloudflare R2，最多 24 小时自动删除，也可以立即手动删除。</li>
+      </ul>
+
+      <h2>它不适合的场景</h2>
+      <ul>
+        <li>需要长期保存、可反复下载的分享链接——用网盘更合适。</li>
+        <li>一对多分发：一个房间是 1 对 1。</li>
+        <li>需要断点续传的超大文件：中断后需要重传。</li>
+        <li>网络环境本身打不通 P2P（对称 NAT、防火墙），且不愿意用中转。</li>
+      </ul>
+
+      <h2 id="faq">常见问题</h2>
+      <dl class="faq">
+        <dt>文件会上传到服务器吗？</dt>
+        <dd>直连成功时不会，文件只在两个浏览器之间流动；只有你主动选「改用中转」时才会临时存到 R2，最多 24 小时自动删除。</dd>
+
+        <dt>为什么有时候连不上？</dt>
+        <dd>最常见的是双方都在对称 NAT 后面，或者一方走 IPv4、另一方走 IPv6。页面会告诉你卡在哪，并给出换网络、重连、中转三条路。</dd>
+
+        <dt>能传多大的文件？</dt>
+        <dd>直连没有硬性上限，取决于接收方磁盘；Firefox 和 Safari 不支持流式写盘，建议单文件不超过 1 GB。中转模式单文件上限 5 TiB。</dd>
+
+        <dt>需要注册或安装吗？</dt>
+        <dd>都不需要，浏览器打开网页即可，电脑和手机之间也能互传。</dd>
+
+        <dt>取件码会被别人猜到吗？</dt>
+        <dd>6 位、32 个字符表（去掉了 0/1/I/O 等易混字符），只在房间存活期内有效，用完可以换新码。把码只发给要传的人最稳妥。</dd>
+
+        <dt>为什么不做会员提速？</dt>
+        <dd>传输是点对点的，速度不经过服务器，也不存在下载排队这一层，所以没有做会员限速或提速包的必要。</dd>
+
+        <dt>手机用流量能传吗？</dt>
+        <dd>可以，但手机流量通常是 CGNAT，打洞成功率比同一个 Wi-Fi 低；能连上时速度也受移动网络影响。</dd>
+
+        <dt>支持哪些浏览器？</dt>
+        <dd>支持 WebRTC 的现代浏览器都可以，包括 Chrome、Edge、Firefox、Safari 以及它们的手机版本；接收端只有 Chrome/Edge 支持边收边写盘。</dd>
+      </dl>
+
+      <div class="foot">
+        <a href="/">开始使用</a>
+        <a href="/#faq">首页的常见问题</a>
+        <span>SixDrop · 6 位取件码 · 点对点直传</span>
+      </div>
+    </div>
+  </body>
+</html>
