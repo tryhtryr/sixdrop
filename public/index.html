@@ -42,8 +42,16 @@
         <p>六位取件码 · 点对点直传 · 文件不经过服务器</p>
       </header>
 
-      <!-- 大厅：只放自己的取件码 + 输入对方的取件码，选文件/聊天都在房间里面 -->
+      <!-- 大厅：自己的取件码 + 输入对方的取件码；同网设备列表和审批也在这里 -->
       <section id="view-lobby" class="view card">
+        <div id="knock" class="knock" hidden>
+          <p class="knock-text"><b id="knock-device">—</b> 想加入你的房间</p>
+          <div class="row">
+            <button id="knock-admit">同意</button>
+            <button class="ghost" id="knock-reject">拒绝</button>
+          </div>
+        </div>
+
         <p class="label">把这串取件码发给对方，对方输入就能进来</p>
         <div class="code" id="lobby-code">------</div>
         <div class="row">
@@ -65,6 +73,16 @@
           />
           <button type="submit">加入</button>
         </form>
+
+        <div class="lobby-foot">
+          <button class="link" id="discover-toggle">同一网络可见：开</button>
+          <p class="muted small" id="lobby-hint" hidden></p>
+        </div>
+
+        <div id="discover" hidden>
+          <div class="or"><span>同一网络</span></div>
+          <ul class="lobby-list" id="lobby-list"></ul>
+        </div>
       </section>
 
       <section id="view-room" class="view card" hidden>

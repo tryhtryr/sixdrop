@@ -10,6 +10,7 @@
 
 - 打开页面 → 立刻得到一个 6 位取件码（大厅只有取件码和「输入对方的取件码」）
 - 对方输码进来，两边一起进房间：房间里是「收发文件 / 消息」两个标签
+- **同一个网络里自动发现**：大厅里列出同网还在等人的设备，点「申请加入」，房主点「同意」就进房间（不用抄码）；也可以关掉自己的可见性
 - 选文件（可多选）→ 对方确认后双方浏览器 **WebRTC DataChannel 直连**对传
 - 多文件时接收端选一个文件夹，全部自动存进去
 - **同一个房间能一直用**：码不变，文件传完还能再发一批，文本也走这条连接
@@ -22,10 +23,12 @@
 
 ## 目录
 ```
-src/worker.js      Worker 入口：/api/room 建房、/ws 升级、其余交给静态资源
-src/room.js        Durable Object：一个房间一个实例，只转发信令
-public/index.html  单页界面
-public/app.js      WebRTC、分块发送、背压、落盘、失败态
+src/worker.js      Worker 入口：/api/room 建房、/ws 升级、同网大厅路由、其余交给静态资源
+src/room.js        Durable Object：一个房间一个实例，只转发信令（含 knock/admit/reject）
+src/lobby.js       Durable Object：同网大厅，按出口 IP 分组，只记 { code, device, ts }
+src/drop.js        Durable Object：R2 中转分享页的清单
+public/index.html  单页界面（大厅 + 房间）
+public/app.js      WebRTC、分块发送、背压、落盘、失败态、同网发现
 public/style.css
 test/              纯 Node 跑的单元测试（不需要 wrangler 账号）
 wrangler.jsonc
@@ -226,6 +229,21 @@ BASE_URL=https://sixdrop.dev node tools/room-e2e.mjs
 
 覆盖：打开页面只有取件码 → 输码进房间 → 房主自动进房间 → 两个标签来回切 →
 拒绝后两边留在原房间 → 同一房间连传多批 → 房间里发文本 → 离开回大厅（换新码）。
+
+### 同网自动发现
+
+```bash
+npm run test:discover     # 或 node tools/discover-e2e.mjs
+BASE_URL=https://sixdrop.dev node tools/discover-e2e.mjs
+```
+
+覆盖：两台互相发现 → 申请 → 房主同意 → 进同一个房间 → 传文件 → 进房间后从列表消失 →
+拒绝后申请方回大厅 → 关掉可见性后从别人列表消失、再打开又出现。
+
+> 分组键是**出口 IP**：IPv4 用完整地址、IPv6 用 /64 前缀（哈希后当 Durable Object 名）。
+> 所以同一 Wi-Fi 下能互相发现；手机流量/CGNAT 下会看到同出口的陌生人（审批拦着）。
+> 本地 dev-server 拿不到 `CF-Connecting-IP`，统一按 `dev` 分组，两个浏览器 context 天然同网。
+> 想换分组盐：`npx wrangler secret put SUBNET_SALT`，不设就用内置常量。
 
 ### 中转链路（需要配好 R2）
 

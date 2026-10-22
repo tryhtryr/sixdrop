@@ -35,8 +35,15 @@ export class Room {
   async fetch(request) {
     const url = new URL(request.url);
     if (url.pathname === '/claim') return this.claim();
+    if (url.pathname === '/exists') return this.exists();
     if (url.pathname === '/ws') return this.upgrade(request, url);
     return new Response('not found', { status: 404 });
+  }
+
+  /** 大厅注册前先确认房间还活着 */
+  async exists() {
+    const createdAt = await this.ctx.storage.get('createdAt');
+    return new Response(createdAt ? 'ok' : 'gone', { status: createdAt ? 200 : 404 });
   }
 
   async claim() {
@@ -89,12 +96,15 @@ export class Room {
 
     server.send(JSON.stringify({ t: 'joined', role, admitted }));
 
-    // 已经在线的一方收到通知，由发送方决定（重新）发 offer
-    for (const peer of others) {
-      try {
-        peer.send(JSON.stringify({ t: 'peer-joined', role }));
-      } catch {
-        /* 忽略 */
+    // 已经在线的一方收到通知，由发送方决定（重新）发 offer。
+    // 未准入的访客不能通知对端，否则房主会在审批之前就被拉进房间
+    if (admitted) {
+      for (const peer of others) {
+        try {
+          peer.send(JSON.stringify({ t: 'peer-joined', role }));
+        } catch {
+          /* 忽略 */
+        }
       }
     }
 
@@ -204,11 +214,12 @@ export class Room {
 
     const from = att?.role;
     const peers = this.ctx.getWebSockets().filter((peer) => peer !== ws);
+    const admitted = peers.filter((peer) => peer.deserializeAttachment()?.admitted).length;
 
     for (const peer of peers) {
       try {
         peer.send(JSON.stringify({ t: 'peer-left', from }));
-        peer.send(JSON.stringify({ t: 'peers', n: peers.length }));
+        peer.send(JSON.stringify({ t: 'peers', n: admitted }));
       } catch {
         /* 忽略 */
       }

@@ -7,9 +7,10 @@
     "dev": "wrangler dev",
     "dev:local": "node tools/dev-server.mjs",
     "deploy": "wrangler deploy",
-    "test": "node test/room.test.js && node test/worker.test.js && node test/relay.test.js && node test/ui.test.js",
+    "test": "node test/room.test.js && node test/worker.test.js && node test/relay.test.js && node test/lobby.test.js && node test/ui.test.js",
     "test:e2e": "node tools/e2e.mjs",
     "test:room": "node tools/room-e2e.mjs",
+    "test:discover": "node tools/discover-e2e.mjs",
     "test:r2": "node tools/r2-check.mjs && node tools/relay-browser.mjs && node tools/relay-ui.mjs && node tools/relay-ui-receiver.mjs",
     "indexnow": "node tools/ping-indexnow.mjs"
   },

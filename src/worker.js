@@ -1,8 +1,9 @@
 import { Room } from './room.js';
 import { Drop } from './drop.js';
+import { Lobby } from './lobby.js';
 import { handleRelay, presignGet, deleteObject } from './relay.js';
 
-export { Room, Drop };
+export { Room, Drop, Lobby };
 
 const ROOM_TTL_MS = 30 * 60 * 1000;
 // 去掉容易看错的 0/O/1/I，32 个字符，6 位约 10.7 亿种组合
@@ -35,6 +36,24 @@ export default {
     }
 
     if (url.pathname === '/ws') return openSocket(request, env, url);
+
+    // 同网发现：按出口 IP 分组的大厅
+    if (url.pathname === '/api/lobby') {
+      if (request.method !== 'GET') return json({ error: 'method not allowed' }, 405);
+      return listLobby(request, env, url);
+    }
+    if (url.pathname === '/api/lobby/register' && request.method === 'POST') {
+      return registerLobby(request, env);
+    }
+    if (url.pathname === '/api/lobby/hide' && request.method === 'POST') {
+      return hideLobby(request, env);
+    }
+    if (url.pathname === '/api/lobby/invite' && request.method === 'POST') {
+      return createInvite(request, env);
+    }
+    if (url.pathname.startsWith('/api/invite/') && request.method === 'GET') {
+      return redeemInvite(request, env, url);
+    }
 
     // 兜底中转：打洞失败时把文件直传 R2，收件人走预签名链接下载
     if (url.pathname.startsWith('/api/relay/')) return handleRelay(request, env, url);
@@ -86,6 +105,128 @@ async function openSocket(request, env, url) {
 
   const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
   return stub.fetch(request);
+}
+
+/* ---------------- 同网发现（大厅） ---------------- */
+
+// 加了盐的哈希当 DO 名：既能分组，又不把 IP 写进存储/日志
+const SUBNET_SALT = 'sixdrop-lobby-v1';
+const INVITE_RE = /^[2-9A-HJ-NP-Z]{12}$/;
+
+/** IPv6 抹到 /64：同一个 Wi-Fi 下每台设备地址不同，只有前缀一样 */
+function ipv6Prefix64(addr) {
+  const head = String(addr).split('%')[0].toLowerCase();
+  const [leftRaw = '', rightRaw = ''] = head.split('::');
+  const left = leftRaw ? leftRaw.split(':') : [];
+  const right = rightRaw ? rightRaw.split(':') : [];
+  const missing = Math.max(0, 8 - left.length - right.length);
+  const full = [...left, ...Array(missing).fill('0'), ...right];
+  return full
+    .slice(0, 4)
+    .map((h) => (h || '0').padStart(4, '0'))
+    .join(':');
+}
+
+async function subnetKey(request, env) {
+  const raw = String(
+    request.headers.get('cf-connecting-ip') ||
+      request.headers.get('x-forwarded-for') ||
+      'dev', // 本地 dev-server 没有这个头：本机所有页面归到同一组
+  )
+    .split(',')[0]
+    .trim();
+
+  const group = raw.includes(':') ? `v6:${ipv6Prefix64(raw)}` : `v4:${raw}`;
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`${env.SUBNET_SALT || SUBNET_SALT}|${group}`),
+  );
+  return [...new Uint8Array(digest)]
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 32);
+}
+
+async function lobbyOf(request, env) {
+  const key = await subnetKey(request, env);
+  return env.LOBBY.get(env.LOBBY.idFromName(key));
+}
+
+async function listLobby(request, env, url) {
+  const exclude = (url.searchParams.get('exclude') || '').toUpperCase();
+  const stub = await lobbyOf(request, env);
+  const qs = exclude ? `?exclude=${encodeURIComponent(exclude)}` : '';
+  return stub.fetch(`https://lobby.internal/list${qs}`);
+}
+
+async function registerLobby(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'bad json' }, 400);
+  }
+
+  const code = String(body.code || '').toUpperCase();
+  if (!CODE_RE.test(code)) return json({ error: 'bad code' }, 400);
+
+  // 房间已经不在了就别登记，免得列表里出现进不去的房间
+  const room = env.ROOMS.get(env.ROOMS.idFromName(code));
+  const alive = await room.fetch('https://room.internal/exists');
+  if (!alive.ok) return json({ error: 'no such room' }, 404);
+
+  const stub = await lobbyOf(request, env);
+  return stub.fetch('https://lobby.internal/register', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code, device: String(body.device || '') }),
+  });
+}
+
+async function hideLobby(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'bad json' }, 400);
+  }
+
+  const code = String(body.code || '').toUpperCase();
+  if (!CODE_RE.test(code)) return json({ error: 'bad code' }, 400);
+
+  const stub = await lobbyOf(request, env);
+  return stub.fetch('https://lobby.internal/hide', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+}
+
+async function createInvite(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'bad json' }, 400);
+  }
+
+  const id = String(body.id || '');
+  if (!/^[2-9A-HJ-NP-Z]{8}$/.test(id)) return json({ error: 'bad id' }, 400);
+
+  const stub = await lobbyOf(request, env);
+  return stub.fetch('https://lobby.internal/invite', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+}
+
+async function redeemInvite(request, env, url) {
+  const token = url.pathname.slice('/api/invite/'.length).toUpperCase();
+  if (!INVITE_RE.test(token)) return json({ error: 'bad invite' }, 400);
+
+  const stub = await lobbyOf(request, env);
+  return stub.fetch(`https://lobby.internal/invite/${token}`);
 }
 
 /* ---------------- 中转完成后的分享页 ---------------- */

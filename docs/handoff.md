@@ -14,20 +14,24 @@
 
 ## 二、当前界面结构（大厅 + 房间）
 
-**大厅**（`view-lobby`，打开页面就是它）：只放自己的取件码和「输入对方的取件码」，
-没有任何标签、没有选文件入口。
+**大厅**（`view-lobby`，打开页面就是它）：自己的取件码 + 输入对方的取件码，
+下面挂同网发现的列表和「同一网络可见」开关。
 
 ```
-┌ 把这串取件码发给对方，对方输入就能进来
+┌ [有人敲门：某某 想加入你的房间  [同意][拒绝]]   ← 只在有人申请时出现
+│ 把这串取件码发给对方，对方输入就能进来
 │            A B C 1 2 3                ← 大号取件码
 │  [复制取件码]   [复制链接]
 │  ─────────────── 或 ───────────────
 │  输入对方的取件码
 │  [ 6 位取件码          ] [加入]
+│         同一网络可见：开
+│  ───────────── 同一网络 ─────────────
+│  王工的 MacBook          刚刚   [申请加入]
 └
 ```
 
-**房间**（`view-room`）：输码进来（或对方输你的码）之后才有。
+**房间**（`view-room`）：输码进来（或对方输你的码 / 同网被同意）之后才有。
 
 ```
 ┌ 取件码 ABC123                    [离开]
@@ -40,11 +44,33 @@
 
 | 事件 | 结果 |
 |---|---|
-| 打开页面 | 建房拿码，停在大厅（`show('lobby')`） |
-| 在大厅输码 | 跳 `/?c=CODE`，直接进房间（`startReceive()` → `show('wait')`） |
-| 对方进房（`peers` n≥2 / `peer-joined`） | 房主自动进房间（`enterRoom()`），码不变 |
-| 点「离开」 | `leaveRoom()`：发 bye → 回大厅并**换一个新码** |
+| 打开页面 | 建房拿码，停在大厅（`show('lobby')`）并登记到同网大厅 |
+| 在大厅输码 | 跳 `/?c=CODE`，直接进房间（`startReceive()`） |
+| 同网列表点「申请加入」 | 换一次性 invite → 跳 `/?invite=…` → 连 `via=discover`（pending） |
+| 房主点「同意」 | 访客被 admit，两边进同一个房间；房主进房间时撤销自己的登记 |
+| 房主点「拒绝」 | 访客收到 reject，回大厅重新开一间 |
+| 对方输码进房（`peers` n≥2） | 房主自动进房间（`enterRoom()`），码不变 |
+| 点「离开」 | `leaveRoom()`：发 bye → 撤销登记 → 回大厅并**换一个新码** |
 | 传完点「返回」 | `show('room')`，回房间文件面板，码不变 |
+
+### 同网发现（阶段 3，已上线）
+
+- **分组键**：`CF-Connecting-IP` 的 IPv4 完整地址 / IPv6 的 `/64` 前缀，
+  加盐 SHA-256 后当前大厅 DO 的名字（`src/worker.js` 的 `subnetKey()`）。
+  本地没有这个头，统一按 `dev` 分组 → 本机所有页面天然同网。
+- **存储**：`src/lobby.js`，只存 `{ id, code, device, ts }`；对外只给 `id / device / age`，
+  **取件码从来不进列表**。条目 3 分钟不续期就过期（前端在大厅每 20 秒心跳续期）。
+- **加入**：`POST /api/lobby/invite {id}` 换 12 位一次性 token（60 秒有效、只能用一次），
+  页面拿 token 换回码后才连房间，连接带 `via=discover` → 房间侧 `admitted=false`，
+  只允许发 `knock`，房主 `admit` 之后才转发信令（这套在 `src/room.js`，本来就有测试）。
+- **可见性**：默认开，开关在 `localStorage['sixdrop.discover']`；关掉立刻 `POST /api/lobby/hide`。
+  关页面用 `sendBeacon` 撤销（撤不掉也会 3 分钟过期）。
+- **路由**：`GET /api/lobby`、`POST /api/lobby/register`、`POST /api/lobby/hide`、
+  `POST /api/lobby/invite`、`GET /api/invite/<token>`。
+- **限制**：列表最多 20 条；每个房间同时只有一个 pending 访客（房间只有 receiver 一个槽）；
+  进了房间就不再可被发现（v1 刻意不做房间内审批）。
+- **已知取舍**：审批是"软门槛"——申请方拿到码后理论上可以直接 `/?c=` 绕过审批；
+  列表不广播码、审批拦住顺手乱点，但挡不住同网的有心人。手机流量/CGNAT 下会看到同出口的陌生人。
 
 ### 代码结构
 
@@ -66,7 +92,10 @@
   - `setStatus()` 写文件面板顶部状态行 `#room-status`
   - `setCode()` 同时更新大厅 `#lobby-code` 和房间头部 `#room-code`
   - `takeFiles()` 是房间里选文件的唯一入口（点选择框或拖进 `.drop`）
-- `public/style.css`：`.room-head` / `.room-code` / `.or`（大厅码与输入框之间的分隔线）
+  - 同网发现：`deviceLabel()` / `discoverOn()` / `registerSelf()` / `unregisterSelf()` /
+    `startLobbyPoll()` / `refreshLobbyList()` / `renderLobbyList()` / `requestJoin()` /
+    `onKnock()` / `giveUpOnApproval()`
+- `public/style.css`：`.room-head` / `.room-code` / `.or` / `.lobby-list` / `.knock`
 
 ### 行为细节
 
@@ -93,6 +122,9 @@
 2. **重复 offer**：`peers` 和 `peer-joined` 都会触发 `startOffer()`，会白建一条 PC/DC。
    现在 `dc.onopen` 的自动开传加了 `!s.batchDone` 判断，已经传完的一批不会因为重连再发一遍。
    （`peer-joined` 的重发 offer 逻辑保留，它是「对方刷新后重新连上」的恢复路径。）
+3. **未准入的访客被当成了对端**（做同网发现时暴露的）：`Room.upgrade` 以前不管有没有
+   admitted 都广播 `peer-joined`，房主会在客人还没被同意时就被拉进房间（然后自动拒掉客人）。
+   现在只有 `admitted` 的连接才通知对端；`peerGone` 的 `peers` 数也改成只数 admitted。
 
 ### 删掉的东西
 
@@ -107,17 +139,24 @@
 node test/room.test.js      # 信令 / 审批 / TTL
 node test/worker.test.js    # 路由、建房、分享页
 node test/relay.test.js     # R2 签名
+node test/lobby.test.js     # 大厅：注册/列表/过期/invite 一次性/上限/hide
 node test/ui.test.js        # id 交叉检查、面板路由、大厅/房间的结构约束
 
 node tools/e2e.mjs          # 3 文件传输 + 哈希 + 校验码（SIZE_MB=32 单大文件也过）
 node tools/chat-e2e.mjs     # 房间里的文本链路 + 多行 + Shift+回车
 node tools/room-e2e.mjs     # 大厅/房间模型验收（主验收）
+node tools/discover-e2e.mjs # 同网发现验收
 ```
 
 `tools/room-e2e.mjs` 覆盖：打开只有取件码 → 输码进房间 → 房主自动进房间 → 直连建立 →
 两个标签来回切 → 拒绝后两边留在原房间 → 同房间第二批 → 「返回」回房间 →
 第三批（验证发送锁）→ **接收中收到消息只亮未读点、切过去能看且文件仍完整** →
 房间里互发文本 → 文本切回文件 → 离开回大厅拿新码。
+
+`tools/discover-e2e.mjs` 覆盖：两台互相发现 → 申请（房主不会被提前拉进房间）→ 同意 →
+进同一个房间 → 传文件哈希一致 → 进房间后从列表消失 → 离开后重新可见 →
+拒绝后申请方回大厅 → 关掉可见性后立刻从别人列表消失、再打开又出现。
+（设备名每次跑带随机后缀，避免和上一轮残留条目撞名。）
 
 **注意**：`dev-server` 的 DO 是模拟的，真实信令时序只有线上能测；本地全绿不等于线上全绿。
 
@@ -126,8 +165,7 @@ node tools/room-e2e.mjs     # 大厅/房间模型验收（主验收）
 1. **阶段 2：server 模式**（`docs/room-model-spec.md` 第六节）——打洞失败不跳页，
    房间文件面板直接给「上传并生成链接」，文本照常走 WS，再提供「重试直连」
    （现在还是独立的 `view-error` / `view-relay` 两页）
-2. **阶段 3：同网发现**：后端 `knock/admit/reject` 已实现并通过测试（见 `test/room.test.js`
-   「同网发现进来的访客要房主审批」），只差 lobby DO 分组 + 列表 UI
+2. 同网发现的 v1.1（可选）：房间内也能接申请、给设备起昵称、从列表直接看房间 "已经传过几批"。
 3. 二维码（分享链接已经覆盖大部分场景）
 
 不要做的事：断点续传、TURN 中继、继续调传输参数（都已评估过，见第五、七节）。
@@ -166,7 +204,12 @@ node node_modules\wrangler\bin\wrangler.js deploy
 BASE_URL=https://sixdrop.dev node tools/e2e.mjs
 BASE_URL=https://sixdrop.dev node tools/chat-e2e.mjs
 BASE_URL=https://sixdrop.dev node tools/room-e2e.mjs
+BASE_URL=https://sixdrop.dev node tools/discover-e2e.mjs
 ```
+
+新增 Durable Object 类（这次是 `Lobby`）必须同时改 `wrangler.jsonc` 的 `migrations`
+（`{ "tag": "v3", "new_sqlite_classes": ["Lobby"] }`），否则 deploy 会报迁移不一致。
+可选密钥：`npx wrangler secret put SUBNET_SALT`（改分组盐，不设就用内置常量）。
 
 ## 七、必须知道的坑（都是真踩过的）
 
@@ -181,15 +224,20 @@ BASE_URL=https://sixdrop.dev node tools/room-e2e.mjs
 | **decline 不要 resetAll** | 拒绝只取消这一批，房间要留 |
 | **不要把本地 dev-server 通过当生产通过** | DO 是模拟的，真实信令时序测不出来 |
 | **大厅和房间会有同名需求** | 码分两个 id：`#lobby-code`（大号）和 `#room-code`（房间头部）；写码统一走 `setCode()` |
+| **访客不能撤销房主的登记** | `registerSelf()` / `unregisterSelf()` / `pagehide` 都先判 `s.role === 'sender'`；访客手里的 `s.code` 是房主的码 |
+| **未准入的连接不能广播 peer-joined** | 否则房主在审批前就被拉进房间，然后自动拒掉客人（已修） |
+| **邀请是一次性的** | `GET /api/invite/<token>` 换过就删；页面刷新后要重新申请 |
+| **同网列表有 3 分钟有效期** | 前端在大厅每 20 秒心跳续期；关页面用 `sendBeacon` 撤销。测试里用带随机后缀的设备名，别和残留条目撞名 |
 | **`[hidden]` 靠 CSS** | `style.css` 里 `[hidden] { display: none !important }`，别用 `display` 覆盖它 |
 
 ## 八、测试与资产
 
 ```bash
-node tools/room-e2e.mjs    # 大厅/房间验收（主验收）
-node tools/e2e.mjs         # 端到端传文件；BASE_URL 指线上
-node tools/chat-e2e.mjs    # 房间里的文本消息
-node tools/dev-server.mjs  # 本地垫片，PORT=8787
+node tools/room-e2e.mjs     # 大厅/房间验收（主验收）
+node tools/discover-e2e.mjs # 同网发现验收
+node tools/e2e.mjs          # 端到端传文件；BASE_URL 指线上
+node tools/chat-e2e.mjs     # 房间里的文本消息
+node tools/dev-server.mjs   # 本地垫片，PORT=8787（含 LOBBY 的垫片）
 ```
 
 - `docs/room-model-spec.md` — 房间模型的完整设计（状态机、协议、测试计划）

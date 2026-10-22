@@ -6,7 +6,10 @@ const HIGH_WATER = Math.max(2, Math.min(16, Number(TUNE.get('water')) || 8)) * 1
 const LOW_WATER = Math.max(1, Math.min(HIGH_WATER / 1024 / 1024, Number(TUNE.get('low')) || (HIGH_WATER / 1024 / 1024) / 2)) * 1024 * 1024;
 const PREFETCH_BYTES = 16 * 1024 * 1024;
 const JOIN_TIMEOUT = 8000;
+// 同网发现进来的要等房主点「同意」，别用 8 秒把人家判死
+const APPROVE_TIMEOUT = 60000;
 const CONNECT_TIMEOUT = 30000;
+const DISCOVER_KEY = 'sixdrop.discover';
 
 // 国内可用的 STUN 放前面；带 AAAA 的放在后面专门探 IPv6
 // 手机流量下双方大概率都在 CGNAT 后面，IPv6 是唯一可能绕过去的路
@@ -60,6 +63,12 @@ const s = {
   joinTimer: 0,
   connectTimer: 0,
   keepaliveTimer: 0,
+  lobbyTimer: 0,
+  registeredAt: 0,
+  // 同网发现：s.discover 只表示「我是等房主审批的访客」
+  discover: false,
+  knockDevice: '',
+  lastRooms: [],
   lock: null,
   // 候选统计，失败时用来判断到底是 STUN 没通还是对称 NAT
   ice: { host: 0, srflx: 0, relay: 0, v6: 0 },
@@ -136,12 +145,250 @@ function setCode(code) {
 /** 对方进房了：从大厅进房间。已经在房间/失败页/中转页就不动 */
 function enterRoom() {
   if ($('view-lobby').hidden) return;
+  // 进了房间就不再对外可见，也就不需要继续轮询了
+  stopLobbyPoll();
+  unregisterSelf();
+  hideKnock();
   show('wait');
 }
 
 /** 离开房间：断开这一间，重新开一间并回到大厅 */
 function leaveRoom() {
   sendSignal({ t: 'bye' });
+  unregisterSelf();
+  stopLobbyPoll();
+  window.__skipBoot = false;
+  resetAll();
+  boot();
+}
+
+/* ---------------- 同网发现（大厅） ---------------- */
+
+/** 浏览器自报的设备名，做不了身份，只是让对方认出是谁 */
+function deviceLabel() {
+  try {
+    const saved = localStorage.getItem('sixdrop.device');
+    if (saved) return saved;
+  } catch {
+    /* 隐私模式拿不到 localStorage 就算了 */
+  }
+
+  const ua = navigator.userAgent;
+  const os = /iPhone|iPad|iPod/.test(ua)
+    ? 'iPhone/iPad'
+    : /Android/.test(ua)
+      ? 'Android'
+      : /Windows/.test(ua)
+        ? 'Windows'
+        : /Mac OS X/.test(ua)
+          ? 'Mac'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : '设备';
+  const browser = /Edg\//.test(ua)
+    ? 'Edge'
+    : /OPR\//.test(ua)
+      ? 'Opera'
+      : /Firefox\//.test(ua)
+        ? 'Firefox'
+        : /Chrome\//.test(ua)
+          ? 'Chrome'
+          : /Safari\//.test(ua)
+            ? 'Safari'
+            : '浏览器';
+
+  const label = `${browser} · ${os}`;
+  try {
+    localStorage.setItem('sixdrop.device', label);
+  } catch {
+    /* 忽略 */
+  }
+  return label;
+}
+
+function discoverOn() {
+  try {
+    return localStorage.getItem(DISCOVER_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+}
+
+function setLobbyHint(text) {
+  const el = $('lobby-hint');
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+
+/** 大厅底部：可见开关 + 一句状态说明 */
+function refreshDiscoverUI() {
+  const on = discoverOn();
+  $('discover-toggle').textContent = `同一网络可见：${on ? '开' : '关'}`;
+
+  if (!on) {
+    $('discover').hidden = true;
+    $('lobby-list').innerHTML = '';
+    s.lastRooms = [];
+    setLobbyHint('同一网络的人看不到这个房间');
+    return;
+  }
+
+  $('discover').hidden = s.lastRooms.length === 0;
+  setLobbyHint(s.lastRooms.length ? '' : '正在找同一网络的设备…');
+}
+
+async function registerSelf() {
+  // 只有房主有资格登记自己的房间；访客手里的码是别人的
+  if (s.role !== 'sender') return;
+  const code = s.code;
+  if (!code || !discoverOn()) return;
+  s.registeredAt = Date.now();
+  try {
+    await fetch('/api/lobby/register', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code, device: deviceLabel() }),
+    });
+  } catch {
+    /* 大厅不可用不影响手动输码 */
+  }
+}
+
+async function unregisterSelf() {
+  // 访客不能把房主的房间从列表里撤掉
+  if (s.role !== 'sender') return;
+  const code = s.code;
+  if (!code) return;
+  try {
+    await fetch('/api/lobby/hide', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+  } catch {
+    /* 忽略 */
+  }
+}
+
+function startLobbyPoll() {
+  stopLobbyPoll();
+  s.lobbyTimer = setInterval(refreshLobbyList, 5000);
+  refreshLobbyList();
+}
+
+function stopLobbyPoll() {
+  clearInterval(s.lobbyTimer);
+  s.lobbyTimer = 0;
+}
+
+async function refreshLobbyList() {
+  if (!s.code || !discoverOn() || $('view-lobby').hidden) return;
+
+  // 心跳续期：大厅一直开着就别让别人看到已经关掉的房间
+  if (Date.now() - s.registeredAt > 20000) {
+    s.registeredAt = Date.now();
+    registerSelf();
+  }
+
+  try {
+    const res = await fetch(`/api/lobby?exclude=${encodeURIComponent(s.code)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    renderLobbyList(data.rooms || []);
+  } catch {
+    /* 网络抖一下，下一轮再说 */
+  }
+}
+
+function fmtAge(ms) {
+  const seconds = Math.max(0, Math.round((Number(ms) || 0) / 1000));
+  if (seconds < 20) return '刚刚';
+  if (seconds < 60) return `${seconds} 秒前`;
+  return `${Math.round(seconds / 60)} 分钟前`;
+}
+
+function renderLobbyList(rooms) {
+  s.lastRooms = Array.isArray(rooms) ? rooms : [];
+
+  const ul = $('lobby-list');
+  ul.innerHTML = '';
+
+  for (const room of s.lastRooms) {
+    const li = document.createElement('li');
+
+    const dev = document.createElement('span');
+    dev.className = 'dev';
+    dev.textContent = room.device || '未知设备';
+
+    const age = document.createElement('span');
+    age.className = 'age';
+    age.textContent = fmtAge(room.age);
+
+    const btn = document.createElement('button');
+    btn.textContent = '申请加入';
+    // 已经有人在敲门时，先别再去申请别人，免得两边互等
+    btn.disabled = Boolean(s.knockDevice);
+    btn.addEventListener('click', () => requestJoin(room.id, btn));
+
+    li.append(dev, age, btn);
+    ul.appendChild(li);
+  }
+
+  refreshDiscoverUI();
+}
+
+async function requestJoin(id, btn) {
+  btn.disabled = true;
+  btn.textContent = '申请中…';
+
+  try {
+    const res = await fetch('/api/lobby/invite', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    if (!res.ok) throw new Error('这个房间已经不在了');
+
+    const { token } = await res.json();
+    // 自己马上要离开大厅，先把自己那条撤掉，别留个进不去的房间
+    stopLobbyPoll();
+    await unregisterSelf();
+    location.href = `/?invite=${encodeURIComponent(token)}`;
+  } catch (err) {
+    toast(err?.message || '申请失败');
+    btn.disabled = false;
+    btn.textContent = '申请加入';
+    refreshLobbyList();
+  }
+}
+
+function hideKnock() {
+  $('knock').hidden = true;
+  s.knockDevice = '';
+}
+
+/** 有人敲门：大厅里只剩自己时才会走到这里 */
+function onKnock(device) {
+  const name = String(device || '有设备');
+
+  // 已经在房间里（或者已经有别人在传）：客气地拒掉，别让人干等
+  if ($('view-lobby').hidden) {
+    sendSignal({ t: 'reject', message: '房主已经在房间里了' });
+    toast(`「${name}」想加入，但你已经进房间了`);
+    return;
+  }
+
+  s.knockDevice = name;
+  $('knock-device').textContent = name;
+  $('knock').hidden = false;
+  renderLobbyList(s.lastRooms);
+  toast(`${name} 想加入你的房间`);
+}
+
+/** 等房主审批超时：回大厅，别让人一直悬着 */
+function giveUpOnApproval() {
+  clearTimeout(s.joinTimer);
+  toast('对方没有同意，回大厅了');
   window.__skipBoot = false;
   resetAll();
   boot();
@@ -315,13 +562,18 @@ async function createRoom() {
 
 function connect(role) {
   // 发送方要等对方输码，可能是几分钟，交给房间 TTL 兜底；
-  // 接收方 8 秒等不到人，基本就是码错了或房间已过期
+  // 接收方 8 秒等不到人，基本就是码错了或房间已过期；
+  // 同网发现进来的要等房主审批，给 60 秒
   if (role === 'receiver') {
+    const limit = s.discover ? APPROVE_TIMEOUT : JOIN_TIMEOUT;
     s.joinTimer = setTimeout(() => {
-      if (!s.peerUp && !s.done) {
-        fail('没有等到对方', '没有找到发送方：确认取件码有没有输错，或者让对方重新发起。');
+      if (s.peerUp || s.done) return;
+      if (s.discover) {
+        giveUpOnApproval();
+        return;
       }
-    }, JOIN_TIMEOUT);
+      fail('没有等到对方', '没有找到发送方：确认取件码有没有输错，或者让对方重新发起。');
+    }, limit);
   }
 
   openSocket(role);
@@ -329,7 +581,11 @@ function connect(role) {
 
 function openSocket(role) {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${proto}://${location.host}/ws?code=${s.code}&role=${role}`);
+  const qs = new URLSearchParams({ code: s.code, role, device: deviceLabel() });
+  // 同网发现进来的先 pending，房主同意后才算数
+  if (s.discover) qs.set('via', 'discover');
+
+  const ws = new WebSocket(`${proto}://${location.host}/ws?${qs}`);
   s.ws = ws;
 
   ws.onopen = () => {
@@ -357,7 +613,8 @@ function openSocket(role) {
   };
 
   ws.onclose = () => {
-    if (!s.code || !s.role) return;
+    // 被拒绝、已结束的会话不要再自己重连（否则会绕过审批）
+    if (!s.code || !s.role || s.done) return;
 
     // 信令断了先自己重连几次，别直接判死刑
     if (s.reconnects < 3) {
@@ -368,7 +625,7 @@ function openSocket(role) {
       return;
     }
 
-    if (s.done || s.sending || s.receivedTotal > 0) return;
+    if (s.sending || s.receivedTotal > 0) return;
     fail('连接已断开', '与服务器的信令连接中断了，刷新页面重新开始。');
   };
 }
@@ -388,6 +645,31 @@ async function onSignal(msg) {
   switch (msg.t) {
     case 'joined':
       clearTimeout(s.joinTimer);
+      // 同网发现进来的还在 pending：给房主 60 秒审批时间
+      if (msg.admitted === false) {
+        setStatus('等待对方同意…');
+        s.joinTimer = setTimeout(giveUpOnApproval, APPROVE_TIMEOUT);
+      }
+      break;
+
+    case 'knock':
+      onKnock(msg.device);
+      break;
+
+    case 'admit':
+      clearTimeout(s.joinTimer);
+      s.discover = false;
+      $('drop-wait').hidden = false;
+      setStatus('对方同意了，正在建立直连…');
+      toast('对方同意了，正在建立直连');
+      break;
+
+    case 'reject':
+      clearTimeout(s.joinTimer);
+      toast(msg.message || '对方拒绝了这次加入');
+      window.__skipBoot = false;
+      resetAll();
+      boot();
       break;
 
     case 'peers':
@@ -397,7 +679,13 @@ async function onSignal(msg) {
         if (s.peerUp) enterRoom();
         if (s.peerUp && !s.offerSent) startOffer();
       } else {
-        setStatus(s.peerUp ? '正在建立直连…' : '正在寻找发送方…');
+        setStatus(
+          s.discover && !s.peerUp
+            ? '等待对方同意…'
+            : s.peerUp
+              ? '正在建立直连…'
+              : '正在寻找发送方…',
+        );
         if (s.peerUp) enterRoom();
       }
       break;
@@ -1445,6 +1733,9 @@ function resetAll() {
   s.offerSent = false;
   s.sending = false;
   s.done = false;
+  s.discover = false;
+  s.knockDevice = '';
+  s.lastRooms = [];
   s.chain = Promise.resolve();
 
   $('bar').style.width = '0%';
@@ -1466,10 +1757,18 @@ function resetAll() {
   setStatus('等待对方…');
   $('wait-files').hidden = true;
   $('wait-files').textContent = '';
+  $('drop-wait').hidden = false;
   resetFileList([]);
   setFilePanel('idle');
   roomTab('file');
   setChatBadge(false);
+
+  // 大厅的临时状态也一起清掉
+  stopLobbyPoll();
+  hideKnock();
+  $('lobby-list').innerHTML = '';
+  $('discover').hidden = true;
+  setLobbyHint('');
 }
 
 async function keepAwake() {
@@ -1541,16 +1840,19 @@ function fingerprint(sdp) {
 /* ---------------- 入口 ---------------- */
 
 /** 输码加入：统一走 /?c=，和分享链接同一条路（避免两套流程打架） */
-function startReceive(code) {
+function startReceive(code, { discover = false } = {}) {
   resetAll();
   s.role = 'receiver';
+  s.discover = discover;
   window.__skipBoot = true;
   setCode(code);
 
   show('wait');
   roomTab('file');
   setFilePanel('idle');
-  setStatus('正在连接发送方…');
+  setStatus(discover ? '等待对方同意…' : '正在连接发送方…');
+  // 还没被同意之前不能选文件，先把投递区收起来
+  $('drop-wait').hidden = discover;
 
   connect('receiver');
 }
@@ -1565,6 +1867,28 @@ function startReceive(code) {
   startReceive(fromLink);
 })();
 
+// 带 ?invite= 打开：同网发现点「申请加入」后走这里，先一次性换码再连（还要房主同意）
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const token = (params.get('invite') || '').trim().toUpperCase();
+  if (!token) return;
+
+  window.__skipBoot = true;
+  history.replaceState(null, '', location.pathname);
+
+  try {
+    const res = await fetch(`/api/invite/${encodeURIComponent(token)}`);
+    if (!res.ok) throw new Error('邀请已失效，回大厅重新申请');
+    const { code } = await res.json();
+    toast('已申请，等对方同意…');
+    startReceive(code, { discover: true });
+  } catch (err) {
+    toast(err?.message || '加入失败');
+    window.__skipBoot = false;
+    boot();
+  }
+})();
+
 /** 打开页面就建房：大厅只显示取件码，等对方进来再进房间 */
 async function boot() {
   // 从分享链接进来时，startReceive 已经接管，别再建一个自己的房间
@@ -1572,15 +1896,19 @@ async function boot() {
   resetAll();
   s.role = 'sender';
   show('lobby');
+  refreshDiscoverUI();
 
   try {
     setCode(await createRoom());
   } catch {
     // 建房失败也还能输码加入别人的房间
     toast('服务器忙，暂时拿不到自己的取件码，可以先输入对方的码');
+    setLobbyHint('没有取件码，但还能输入对方的码');
     return;
   }
 
+  registerSelf();
+  startLobbyPoll();
   connect('sender');
 }
 
@@ -1651,6 +1979,40 @@ $('copy').addEventListener('click', async () => {
   } catch {
     toast('复制失败，请手动选中');
   }
+});
+
+/* ---------------- 同网发现的界面事件 ---------------- */
+
+$('discover-toggle').addEventListener('click', async () => {
+  const next = !discoverOn();
+  try {
+    localStorage.setItem(DISCOVER_KEY, next ? 'on' : 'off');
+  } catch {
+    /* 忽略 */
+  }
+
+  refreshDiscoverUI();
+
+  if (next) {
+    await registerSelf();
+    refreshLobbyList();
+  } else {
+    await unregisterSelf();
+  }
+});
+
+$('knock-admit').addEventListener('click', () => {
+  hideKnock();
+  sendSignal({ t: 'admit' });
+  renderLobbyList(s.lastRooms);
+  toast('已同意，正在建立直连');
+});
+
+$('knock-reject').addEventListener('click', () => {
+  hideKnock();
+  sendSignal({ t: 'reject', message: '房主拒绝了这次加入' });
+  renderLobbyList(s.lastRooms);
+  toast('已拒绝');
 });
 
 $('accept').addEventListener('click', async () => {
@@ -1891,6 +2253,19 @@ $('retry').addEventListener('click', () => {
 });
 
 boot();
+
+// 关页面时把自己的登记撤掉（best effort；撤不掉也会在 3 分钟内过期）
+window.addEventListener('pagehide', () => {
+  if (s.role !== 'sender' || !s.code || !discoverOn()) return;
+  try {
+    navigator.sendBeacon(
+      '/api/lobby/hide',
+      new Blob([JSON.stringify({ code: s.code })], { type: 'application/json' }),
+    );
+  } catch {
+    /* 忽略 */
+  }
+});
 
 window.addEventListener('beforeunload', () => {
   try {

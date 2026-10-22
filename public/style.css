@@ -84,6 +84,93 @@ body {
   padding: 6px 8px;
 }
 
+/* ---------- 大厅：同网发现 ---------- */
+.lobby-foot {
+  margin-top: 14px;
+  text-align: center;
+}
+
+.lobby-foot .link {
+  margin-top: 0;
+}
+
+.lobby-foot .muted {
+  margin: 2px 0 0;
+}
+
+.lobby-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lobby-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #101620;
+  border: 1px solid #1f2a3a;
+  font-size: 13px;
+}
+
+.lobby-list .dev {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby-list .age {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.lobby-list button {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.lobby-list button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* 有人敲门：房主在大厅里点头像/拒绝 */
+.knock {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #241a1c;
+  border: 1px solid #4a2a2e;
+}
+
+.knock-text {
+  margin: 0;
+  font-size: 14px;
+}
+
+.knock-text b {
+  color: var(--text);
+  word-break: break-all;
+}
+
+.knock .row {
+  margin-top: 10px;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);

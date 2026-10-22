@@ -202,6 +202,7 @@ function createCtx(code) {
 const { default: worker } = await import('../src/worker.js');
 const { Room } = await import('../src/room.js');
 const { Drop } = await import('../src/drop.js');
+const { Lobby } = await import('../src/lobby.js');
 
 const drops = new Map();
 
@@ -213,12 +214,34 @@ function getDropEntry(id) {
       storage: {
         get: async (key) => data.get(key),
         put: async (key, value) => data.set(key, value),
+        delete: async (key) => data.delete(key),
         deleteAll: async () => data.clear(),
         setAlarm: async () => {},
       },
     };
     entry = { drop: new Drop(ctx, {}) };
     drops.set(id, entry);
+  }
+  return entry;
+}
+
+const lobbies = new Map();
+
+function getLobbyEntry(id) {
+  let entry = lobbies.get(id);
+  if (!entry) {
+    const data = new Map();
+    const ctx = {
+      storage: {
+        get: async (key) => data.get(key),
+        put: async (key, value) => data.set(key, value),
+        delete: async (key) => data.delete(key),
+        deleteAll: async () => data.clear(),
+        setAlarm: async () => {},
+      },
+    };
+    entry = { lobby: new Lobby(ctx, {}) };
+    lobbies.set(id, entry);
   }
   return entry;
 }
@@ -243,6 +266,21 @@ const env = {
         return getDropEntry(id).drop.fetch({
           url,
           method: init.method || 'GET',
+          json: async () => JSON.parse(body || '{}'),
+        });
+      },
+    }),
+  },
+  LOBBY: {
+    idFromName: (name) => name,
+    get: (id) => ({
+      fetch: async (input, init = {}) => {
+        const url = typeof input === 'string' ? input : input.url;
+        const method = typeof input === 'string' ? init.method || 'GET' : input.method || 'GET';
+        const body = init.body ?? (typeof input === 'string' ? null : input.body ?? null);
+        return getLobbyEntry(id).lobby.fetch({
+          url,
+          method,
           json: async () => JSON.parse(body || '{}'),
         });
       },
