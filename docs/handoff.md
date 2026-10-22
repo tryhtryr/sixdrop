@@ -11,7 +11,7 @@
 当前 HEAD：`fix(lobby): only advertise the room after the signalling socket is up` 之后的小提交
 （见 `git log`）。
 
-**线上已部署这一版**：2026-10-22，Version ID `92b966b8-388c-4f59-ac64-46ca834616f6`，
+**线上已部署这一版**：2026-10-22，Version ID `04efccb6-5ed1-4d76-b37b-2465975624b0`，
 `env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
 （e2e / chat-e2e / room-e2e / discover-e2e）。
 
@@ -83,9 +83,11 @@
 - **加入**：`POST /api/lobby/invite {id}` 换 12 位一次性 token（60 秒有效、只能用一次），
   页面拿 token 换回码后才连房间，连接带 `via=discover` → 房间侧 `admitted=false`，
   只允许发 `knock`，房主 `admit` 之后才转发信令（这套在 `src/room.js`，本来就有测试）。
-- **幽灵条目**：大厅条目会多活 3 分钟；`/api/invite/<token>` 换码时会问一次房间
-  `/alive`（有没有 sender 在线），没人在线就返回 `404 host-left` 并把那条登记撤掉，
-  页面提示「对方已经离开了」后回大厅。房间的 upgrade 里还有一道同样的兜底。
+- **幽灵条目**：大厅条目 3 分钟过期，但房主一断线（关页面、强杀、切网）房间那边就会
+  用 `seat`（Worker 算好的大厅 key，通过 `/ws` 传进来）让 LOBBY 把条目 hide 掉，
+  所以正常情况下列表是干净的（实测硬杀 context 后 ~5 秒内消失，也就是下一次轮询）。
+  兜底还有两道：`/api/invite/<token>` 换码时会问 `/alive`，没有 sender 就 404 `host-left`；
+  房间 upgrade 时没有房主也会直接 reject。
 - **可见性**：默认开，开关在 `localStorage['sixdrop.discover']`；关掉立刻 `POST /api/lobby/hide`。
   关页面用 `sendBeacon` 撤销（撤不掉也会 3 分钟过期）。
 - **路由**：`GET /api/lobby`、`POST /api/lobby/register`、`POST /api/lobby/hide`、
