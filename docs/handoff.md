@@ -11,7 +11,7 @@
 当前 HEAD：`fix(lobby): only advertise the room after the signalling socket is up` 之后的小提交
 （见 `git log`）。
 
-**线上已部署这一版**：2026-10-22，Version ID `1edd56aa-6e18-484f-a16d-2ce9f0271a34`，
+**线上已部署这一版**：2026-10-22，Version ID `f82fb0e8-4db6-4049-96cd-f61956c370d8`，
 `env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
 （e2e / chat-e2e / room-e2e / discover-e2e）。
 
