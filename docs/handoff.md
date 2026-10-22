@@ -11,7 +11,7 @@
 当前 HEAD：`fix(lobby): only advertise the room after the signalling socket is up` 之后的小提交
 （见 `git log`）。
 
-**线上已部署这一版**：2026-10-22，Version ID `6d0a4e02-89e3-4bdd-80c9-17d41c3a916c`，
+**线上已部署这一版**：2026-10-22，Version ID `36adc350-0598-43fe-b0a2-959dfba66475`，
 `env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
 （e2e / chat-e2e / room-e2e / discover-e2e）。
 
@@ -88,8 +88,10 @@
   页面拿 token 换回码后才连房间，连接带 `via=discover` → 房间侧 `admitted=false`，
   只允许发 `knock`，房主 `admit` 之后才转发信令（这套在 `src/room.js`，本来就有测试）。
 - **网络诊断**：`GET /api/lobby/whoami` 回 `{ tag, family }`（短哈希 + IPv4/IPv6）。
-  两台设备 tag 一样才可能互相发现；**IPv4 和 IPv6 是两组，永远互相看不到**（浏览器没法强制协议族），
-  这种情况用取件码。手机用流量也会换组。
+  大厅空状态会**自动**把「网络组 · 地址族」显示出来（两台一对就知道是不是同一个出口），
+  不用手动点「网络诊断」。两台设备 tag 一样才可能互相发现；**IPv4 和 IPv6 是两组，
+  永远互相看不到**（浏览器拿不到局域网网段，也没法强制协议族），这种情况用取件码/链接。
+  手机用流量也会换组。
 - **幽灵条目**：大厅条目 3 分钟过期，但房主一断线（关页面、强杀、切网）房间那边就会
   用 `seat`（Worker 算好的大厅 key，通过 `/ws` 传进来）让 LOBBY 把条目 hide 掉，
   所以正常情况下列表是干净的（实测硬杀 context 后 ~5 秒内消失，也就是下一次轮询）。
