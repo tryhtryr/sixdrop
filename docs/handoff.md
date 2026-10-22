@@ -284,4 +284,4 @@ node tools/dev-server.mjs   # 本地垫片，PORT=8787（含 LOBBY 的垫片）
   `00-方案与合规.md` + 每条 `发布文案.md` + `预览.html`），由 `node tools/render-douyin-convenience.mjs` 生成
 - `tools/render-douyin.mjs` — 旧的「实测速度」版 5 张图文模板（不再用：速度是卖点但不可承诺）
 - `tools/preview-home.mjs` — 重新生成 `public/logo/preview-home.png`（大厅截图，改了界面就跑一次）
-- 分支 `slice2-wip`、`room-wip` — 两次未完成的房间 UI 尝试，可参考（已被本轮取代）
+- 分支 `slice2-wip`、`room-wip` — 两次未完成的房间 UI 尝试，已被本轮取代，**2026-10-22 已删除**（tip 分别是 `758877a`、`a3978bf`，需要时从 reflog 恢复）
