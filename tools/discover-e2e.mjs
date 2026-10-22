@@ -86,7 +86,7 @@ async function waitLobbyCode(page) {
 /** 列表里出现某个设备名 */
 function waitDevice(page, label, timeout = 25000) {
   return page.waitForFunction(
-    (text) => [...document.querySelectorAll('#lobby-list .dev')].some((el) => el.textContent === text),
+    (text) => [...document.querySelectorAll('#peer-grid .name')].some((el) => el.textContent === text),
     label,
     { timeout },
   );
@@ -94,15 +94,14 @@ function waitDevice(page, label, timeout = 25000) {
 
 function deviceGone(page, label, timeout = 15000) {
   return page.waitForFunction(
-    (text) => ![...document.querySelectorAll('#lobby-list .dev')].some((el) => el.textContent === text),
+    (text) => ![...document.querySelectorAll('#peer-grid .name')].some((el) => el.textContent === text),
     label,
     { timeout },
   );
 }
 
 async function applyTo(page, label) {
-  const row = page.locator('#lobby-list li', { hasText: label });
-  await row.locator('button').click();
+  await page.locator('.peer-tile', { hasText: label }).click();
   await page.waitForSelector('#view-room:not([hidden])', { timeout: 20000 });
 }
 
@@ -166,15 +165,15 @@ async function main() {
     await waitDevice(b, A_LABEL);
     await waitDevice(a, B_LABEL);
 
-    const row = await b.evaluate((label) => {
-      const li = [...document.querySelectorAll('#lobby-list li')].find(
-        (el) => el.querySelector('.dev').textContent === label,
+    const tile = await b.evaluate((label) => {
+      const el = [...document.querySelectorAll('#peer-grid .peer-tile')].find(
+        (x) => x.querySelector('.name').textContent === label,
       );
-      return li ? { age: li.querySelector('.age').textContent, btn: li.querySelector('button').textContent } : null;
+      return el ? { age: el.querySelector('.meta').textContent, icon: Boolean(el.querySelector('.icon svg')) } : null;
     }, A_LABEL);
-    assert.ok(row, '列表里应该有甲机');
-    assert.equal(row.btn, '申请加入');
-    step(`互相发现：乙机看到 ${A_LABEL}（${row.age}）`);
+    assert.ok(tile, '设备网格里应该有甲机');
+    assert.ok(tile.icon, '设备块上应该有图标');
+    step(`互相发现：乙机看到 ${A_LABEL}（${tile.age}）`);
 
     /* ---- 2. 申请 → 房主收到敲门，但还没进房间 ---- */
     await applyTo(b, A_LABEL);

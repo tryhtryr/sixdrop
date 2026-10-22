@@ -58,15 +58,38 @@ await test('房间面板路由覆盖 waiting / ask / xfer / chat 四态', async 
   }
 });
 
-await test('大厅只有取件码和输码加入，没有文件/标签', async () => {
-  for (const id of ['view-lobby', 'lobby-code', 'code', 'join', 'copy', 'copy-link']) {
+await test('大厅是设备优先：设备网格 + 自己的设备卡 + 配对弹窗', async () => {
+  for (const id of [
+    'view-lobby',
+    'peer-grid',
+    'lobby-empty',
+    'lobby-hint',
+    'self-tile',
+    'self-name',
+    'discover-toggle',
+    'pair-open',
+    'pair-dialog',
+    'pair-close',
+    'lobby-code',
+    'code',
+    'join',
+    'copy',
+    'copy-link',
+  ]) {
     assert.ok(htmlIds.has(id), `大厅缺少 ${id}`);
   }
-  const lobby = /<section id="view-lobby"[\s\S]*?<\/section>/.exec(html);
-  assert.ok(lobby, '找不到大厅 section');
-  assert.ok(!/type="file"/.test(lobby[0]), '大厅不该有文件选择框');
-  assert.ok(!/class="tab/.test(lobby[0]), '大厅不该有标签页');
-  assert.ok(!/view-lobby[\s\S]*?drop/.test(lobby[0].replace(/<[^>]*>/g, ' ')), '大厅不该有拖放区');
+
+  const lobby = /<section id="view-lobby"[\s\S]*?<\/section>/.exec(html)[0];
+  assert.ok(!/type="file"/.test(lobby), '大厅不该有文件选择框');
+  assert.ok(!/class="tab/.test(lobby), '大厅不该有标签页');
+  assert.match(lobby, /id="peer-grid"/, '大厅应该有设备网格');
+  assert.match(lobby, /id="self-tile"/, '大厅应该有自己设备那一栏');
+
+  // 取件码和输码都收进了「配对新设备」弹窗
+  const dialog = /<dialog id="pair-dialog"[\s\S]*?<\/dialog>/.exec(html)[0];
+  assert.match(dialog, /id="lobby-code"/);
+  assert.match(dialog, /id="join"/);
+  assert.match(dialog, /id="code"/);
 });
 
 await test('房间里有「收发文件 / 消息」两个标签', async () => {

@@ -220,21 +220,24 @@ function setLobbyHint(text) {
   el.hidden = !text;
 }
 
-/** 大厅底部：可见开关 + 一句状态说明 */
+/** 大厅：可见开关的状态 + 顶部提示 + 空状态 */
 function refreshDiscoverUI() {
   const on = discoverOn();
-  $('discover-toggle').textContent = `同一网络可见：${on ? '开' : '关'}`;
+  const toggle = $('discover-toggle');
+  toggle.textContent = `同一网络可见：${on ? '开' : '关'}`;
+  toggle.classList.toggle('on', on);
+  $('self-name').textContent = deviceLabel();
+
+  const hasPeers = s.lastRooms.length > 0;
+  $('peer-grid').hidden = !hasPeers || !on;
+  $('lobby-empty').hidden = hasPeers || !on;
 
   if (!on) {
-    $('discover').hidden = true;
-    $('lobby-list').innerHTML = '';
-    s.lastRooms = [];
     setLobbyHint('同一网络的人看不到这个房间');
     return;
   }
 
-  $('discover').hidden = s.lastRooms.length === 0;
-  setLobbyHint(s.lastRooms.length ? '' : '正在找同一网络的设备…');
+  setLobbyHint(hasPeers ? '点击设备申请加入，对方同意就进同一个房间' : '');
 }
 
 async function registerSelf() {
@@ -294,7 +297,7 @@ async function refreshLobbyList() {
     const res = await fetch(`/api/lobby?exclude=${encodeURIComponent(s.code)}`);
     if (!res.ok) return;
     const data = await res.json();
-    renderLobbyList(data.rooms || []);
+    renderPeers(data.rooms || []);
   } catch {
     /* 网络抖一下，下一轮再说 */
   }
@@ -307,39 +310,68 @@ function fmtAge(ms) {
   return `${Math.round(seconds / 60)} 分钟前`;
 }
 
-function renderLobbyList(rooms) {
+/** 按设备名猜一个图标（手机 / 平板 / 电脑） */
+function deviceIcon(kind) {
+  const paths = {
+    phone: '<rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 17.6h2"/>',
+    tablet: '<rect x="4.5" y="3" width="15" height="18" rx="2.2"/><path d="M11 17.6h2"/>',
+    desktop:
+      '<rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M9 20h6M12 16.5V20"/>',
+  };
+  const body = paths[kind] || paths.desktop;
+  return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+}
+
+function iconFor(label) {
+  const text = String(label || '');
+  if (/iPad|Tablet|平板/i.test(text)) return deviceIcon('tablet');
+  if (/iPhone|Android|Phone|手机/i.test(text)) return deviceIcon('phone');
+  return deviceIcon('desktop');
+}
+
+/** 大厅里的同网设备：一个设备一个方块，点一下就申请加入 */
+function renderPeers(rooms) {
   s.lastRooms = Array.isArray(rooms) ? rooms : [];
 
-  const ul = $('lobby-list');
-  ul.innerHTML = '';
+  const grid = $('peer-grid');
+  grid.innerHTML = '';
 
   for (const room of s.lastRooms) {
     const li = document.createElement('li');
 
-    const dev = document.createElement('span');
-    dev.className = 'dev';
-    dev.textContent = room.device || '未知设备';
-
-    const age = document.createElement('span');
-    age.className = 'age';
-    age.textContent = fmtAge(room.age);
-
-    const btn = document.createElement('button');
-    btn.textContent = '申请加入';
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'peer-tile';
     // 已经有人在敲门时，先别再去申请别人，免得两边互等
-    btn.disabled = Boolean(s.knockDevice);
-    btn.addEventListener('click', () => requestJoin(room.id, btn));
+    tile.disabled = Boolean(s.knockDevice);
+    tile.title = `${room.device || '未知设备'} · 点击申请加入`;
 
-    li.append(dev, age, btn);
-    ul.appendChild(li);
+    const icon = document.createElement('span');
+    icon.className = 'icon';
+    icon.innerHTML = iconFor(room.device);
+
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = room.device || '未知设备';
+
+    const meta = document.createElement('span');
+    meta.className = 'meta';
+    meta.textContent = fmtAge(room.age);
+
+    tile.append(icon, name, meta);
+    tile.addEventListener('click', () => requestJoin(room.id, tile, meta));
+
+    li.appendChild(tile);
+    grid.appendChild(li);
   }
 
   refreshDiscoverUI();
 }
 
-async function requestJoin(id, btn) {
-  btn.disabled = true;
-  btn.textContent = '申请中…';
+async function requestJoin(id, tile, meta) {
+  tile.disabled = true;
+  tile.classList.add('pending');
+  if (meta) meta.textContent = '申请中…';
 
   try {
     const res = await fetch('/api/lobby/invite', {
@@ -356,8 +388,9 @@ async function requestJoin(id, btn) {
     location.href = `/?invite=${encodeURIComponent(token)}`;
   } catch (err) {
     toast(err?.message || '申请失败');
-    btn.disabled = false;
-    btn.textContent = '申请加入';
+    tile.disabled = false;
+    tile.classList.remove('pending');
+    if (meta) meta.textContent = '点击申请';
     refreshLobbyList();
   }
 }
@@ -381,7 +414,7 @@ function onKnock(device) {
   s.knockDevice = name;
   $('knock-device').textContent = name;
   $('knock').hidden = false;
-  renderLobbyList(s.lastRooms);
+  renderPeers(s.lastRooms);
   toast(`${name} 想加入你的房间`);
 }
 
@@ -1766,9 +1799,12 @@ function resetAll() {
   // 大厅的临时状态也一起清掉
   stopLobbyPoll();
   hideKnock();
-  $('lobby-list').innerHTML = '';
-  $('discover').hidden = true;
+  s.lastRooms = [];
+  $('peer-grid').innerHTML = '';
+  $('peer-grid').hidden = true;
+  $('lobby-empty').hidden = false;
   setLobbyHint('');
+  if ($('pair-dialog').open) $('pair-dialog').close();
 }
 
 async function keepAwake() {
@@ -2004,15 +2040,33 @@ $('discover-toggle').addEventListener('click', async () => {
 $('knock-admit').addEventListener('click', () => {
   hideKnock();
   sendSignal({ t: 'admit' });
-  renderLobbyList(s.lastRooms);
+  renderPeers(s.lastRooms);
   toast('已同意，正在建立直连');
 });
 
 $('knock-reject').addEventListener('click', () => {
   hideKnock();
   sendSignal({ t: 'reject', message: '房主拒绝了这次加入' });
-  renderLobbyList(s.lastRooms);
+  renderPeers(s.lastRooms);
   toast('已拒绝');
+});
+
+/* 配对新设备：取件码 / 输入对方的码都在这个弹窗里 */
+$('pair-open').addEventListener('click', () => {
+  const dialog = $('pair-dialog');
+  $('lobby-code').textContent = s.code || '------';
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  setTimeout(() => $('code')?.focus(), 60);
+});
+
+$('pair-close').addEventListener('click', () => {
+  $('pair-dialog').close();
+});
+
+// 点弹窗外的背板也能关
+$('pair-dialog').addEventListener('click', (ev) => {
+  if (ev.target === $('pair-dialog')) $('pair-dialog').close();
 });
 
 $('accept').addEventListener('click', async () => {
