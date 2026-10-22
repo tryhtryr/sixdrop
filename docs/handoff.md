@@ -280,6 +280,8 @@ node tools/dev-server.mjs   # 本地垫片，PORT=8787（含 LOBBY 的垫片）
 - `docs/room-model-spec.md` — 房间模型的完整设计（状态机、协议、测试计划）
 - `docs/competitor-report.md` — PairDrop / Snapdrop / ZWDrop 对比
 - `docs/zhihu-post.md`、`docs/wechat-post.md` — 两篇现成稿子
-- `C:\Users\jian\Desktop\sixdrop\` — 抖音运营资料 + 5 张图文
+- `C:\Users\jian\Desktop\sixdrop\` — 抖音图文素材（便利向，3 条选题 × 6 张 1200×1600 +
+  `00-方案与合规.md` + 每条 `发布文案.md` + `预览.html`），由 `node tools/render-douyin-convenience.mjs` 生成
+- `tools/render-douyin.mjs` — 旧的「实测速度」版 5 张图文模板（不再用：速度是卖点但不可承诺）
 - `tools/preview-home.mjs` — 重新生成 `public/logo/preview-home.png`（大厅截图，改了界面就跑一次）
 - 分支 `slice2-wip`、`room-wip` — 两次未完成的房间 UI 尝试，可参考（已被本轮取代）
