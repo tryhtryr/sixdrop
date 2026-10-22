@@ -2009,8 +2009,16 @@ async function describePath(pc) {
     const type = local?.candidateType || remote?.candidateType;
 
     const label = type === 'host' ? '局域网直连' : type === 'relay' ? '中继' : '公网打洞';
+    // 用选中候选的地址判断实际走的是 v4 还是 v6（mDNS 的 .local 看不出来就不标）
+    const address = String(local?.address || remote?.address || '');
+    const family = /^[0-9a-f:]+$/i.test(address) && address.includes(':')
+      ? 'IPv6'
+      : /^\d+\.\d+\.\d+\.\d+$/.test(address)
+        ? 'IPv4'
+        : '';
+
     const el = $('path');
-    el.textContent = `· ${label}`;
+    el.textContent = family ? `· ${label} · ${family}` : `· ${label}`;
     el.hidden = false;
   } catch {
     /* 统计拿不到就算了 */
