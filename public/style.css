@@ -84,212 +84,122 @@ body {
   padding: 6px 8px;
 }
 
-/* ---------- 大厅：同网设备（参考 PairDrop 的“设备优先”布局） ---------- */
-.lobby-canvas {
-  position: relative;
-  min-height: 300px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 0 10px;
-  overflow: hidden;
-}
-
-/* 同心圆涟漪，纯装饰 */
-.lobby-canvas::before {
-  content: "";
-  position: absolute;
-  inset: -60% -30%;
-  background: repeating-radial-gradient(
-    circle at 50% 45%,
-    transparent 0 58px,
-    rgba(232, 234, 237, 0.045) 58px 59px
-  );
-  pointer-events: none;
-}
-
-.lobby-hint {
-  position: relative;
-  margin: 0 0 10px;
+/* ---------- 大厅：取件码 + 同网设备同时在场 ---------- */
+.lobby-me {
+  margin: 14px 0 0;
   text-align: center;
 }
 
-.peer-grid {
-  position: relative;
+.lobby-me b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.lobby-me .link {
+  margin-top: 0;
+  padding: 4px 6px;
+}
+
+.lobby-foot {
+  margin-top: 4px;
+  text-align: center;
+}
+
+.lobby-foot .link {
+  margin-top: 0;
+}
+
+.lobby-foot .muted {
+  margin: 2px 0 0;
+}
+
+.lobby-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
-}
-
-.peer-grid li {
-  display: flex;
-}
-
-.peer-tile {
-  width: 108px;
-  padding: 12px 6px 10px;
-  display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 8px;
-  border-radius: 16px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text);
-  font-weight: 400;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
 }
 
-.peer-tile:hover:not(:disabled),
-.peer-tile:focus-visible {
-  background: #12161d;
-  border-color: var(--line);
+.lobby-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #101620;
+  border: 1px solid #1f2a3a;
+  font-size: 13px;
 }
 
-.peer-tile:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-.peer-tile .icon {
-  width: 58px;
-  height: 58px;
+.lobby-list .icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: grid;
   place-items: center;
   color: #fff;
   background: linear-gradient(180deg, #5a95ff, #3a6fd8);
-  box-shadow: 0 10px 26px rgba(79, 140, 255, 0.28);
 }
 
-.peer-tile .name {
-  max-width: 100%;
-  font-size: 13px;
-  line-height: 1.35;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.peer-tile .meta {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.lobby-empty {
-  position: relative;
-  text-align: center;
-  padding: 26px 8px;
-}
-
-.lobby-empty-title {
-  margin: 0 0 6px;
-  font-size: 15px;
-  color: #9fc0ff;
-}
-
-.lobby-empty .muted {
-  margin: 0;
-}
-
-/* 你自己的设备 */
-.self-tile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 6px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-}
-
-.self-icon {
-  flex: 0 0 auto;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: var(--accent);
-  background: #101620;
-  border: 1px solid #1f2a3a;
-}
-
-.self-body {
+.lobby-list .dev {
   flex: 1;
   min-width: 0;
-}
-
-.self-name {
-  margin: 0 0 8px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.self-name b {
-  color: var(--text);
-}
-
-.self-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 1px;
 }
 
-.pill {
-  padding: 6px 12px;
-  border-radius: 99px;
-  border: 1px solid var(--line);
-  background: transparent;
+.lobby-list .dev b {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby-list .dev .sub {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.lobby-list .age {
   color: var(--muted);
   font-size: 12px;
+  white-space: nowrap;
+}
+
+.lobby-list button {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text);
   font-weight: 500;
 }
 
-.pill:hover {
-  border-color: #3a4a60;
-  color: var(--text);
+.lobby-list button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
-.pill.on {
-  border-color: #2c4a7a;
-  color: #a9c6ff;
+.lobby-empty {
+  margin: 10px 0 0;
+  text-align: center;
+  line-height: 1.7;
 }
 
-/* 配对新设备：取件码 + 输码加入 */
-.dialog {
-  width: min(92vw, 420px);
-  padding: 20px 22px 22px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--card);
-  color: var(--text);
+.lobby-actions {
+  margin: 6px 0 0;
+  text-align: center;
 }
 
-.dialog::backdrop {
-  background: rgba(6, 8, 12, 0.72);
-}
-
-.dialog-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.dialog-head h2 {
-  margin: 0 0 12px;
-  font-size: 16px;
-}
-
-.dialog-head .link {
+.lobby-actions .link {
   margin-top: 0;
+  padding: 4px 8px;
 }
 
 /* 有人敲门：房主在大厅里点头像/拒绝 */

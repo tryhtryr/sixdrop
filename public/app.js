@@ -164,46 +164,82 @@ function leaveRoom() {
 
 /* ---------------- 同网发现（大厅） ---------------- */
 
-/** 浏览器自报的设备名，做不了身份，只是让对方认出是谁 */
-function deviceLabel() {
+/**
+ * 名字：像 PairDrop 那样随机给一个「蓝色的海豚」，同一个网络里两台
+ * "Edge · Windows" 也分得清；存 localStorage，可改名。
+ */
+const NAME_KEY = 'sixdrop.name';
+const NAME_ADJ = ['蓝色', '安静', '勇敢', '温柔', '机灵', '好奇', '沉稳', '明亮', '胖胖', '敏捷', '暖暖', '淡绿'];
+const NAME_ANIMAL = ['海豚', '水獭', '狐狸', '熊猫', '浣熊', '猫头鹰', '鲸鱼', '刺猬', '松鼠', '企鹅', '海豹', '柴犬'];
+
+function randomName() {
+  const pick = (list) => list[Math.floor(Math.random() * list.length)];
+  return `${pick(NAME_ADJ)}的${pick(NAME_ANIMAL)}`;
+}
+
+function deviceName() {
   try {
-    const saved = localStorage.getItem('sixdrop.device');
+    const saved = localStorage.getItem(NAME_KEY);
     if (saved) return saved;
+    const made = randomName();
+    localStorage.setItem(NAME_KEY, made);
+    return made;
   } catch {
-    /* 隐私模式拿不到 localStorage 就算了 */
+    return randomName();
   }
+}
 
-  const ua = navigator.userAgent;
-  const os = /iPhone|iPad|iPod/.test(ua)
-    ? 'iPhone/iPad'
-    : /Android/.test(ua)
-      ? 'Android'
-      : /Windows/.test(ua)
-        ? 'Windows'
-        : /Mac OS X/.test(ua)
-          ? 'Mac'
-          : /Linux/.test(ua)
-            ? 'Linux'
-            : '设备';
-  const browser = /Edg\//.test(ua)
-    ? 'Edge'
-    : /OPR\//.test(ua)
-      ? 'Opera'
-      : /Firefox\//.test(ua)
-        ? 'Firefox'
-        : /Chrome\//.test(ua)
-          ? 'Chrome'
-          : /Safari\//.test(ua)
-            ? 'Safari'
-            : '浏览器';
-
-  const label = `${browser} · ${os}`;
+function setDeviceName(name) {
+  const clean = String(name || '').trim().slice(0, 16);
+  if (!clean) return false;
   try {
-    localStorage.setItem('sixdrop.device', label);
+    localStorage.setItem(NAME_KEY, clean);
   } catch {
-    /* 忽略 */
+    /* 隐私模式就算了，本次会话里至少生效 */
   }
-  return label;
+  return true;
+}
+
+/** 浏览器 / 系统：只用来做副标题，不参与识别 */
+function platformLabel() {
+  const ua = navigator.userAgent;
+
+  // Edge Android 是 EdgA/，iOS 是 EdgiOS/；Chrome iOS 是 CriOS/，Firefox iOS 是 FxiOS/
+  const browser = /EdgA?\//.test(ua) || /EdgiOS\//.test(ua)
+    ? 'Edge'
+    : /OPR\/|Opera/.test(ua)
+      ? 'Opera'
+      : /SamsungBrowser\//.test(ua)
+        ? 'Samsung'
+        : /Firefox\/|FxiOS\//.test(ua)
+          ? 'Firefox'
+          : /CriOS\//.test(ua)
+            ? 'Chrome'
+            : /Chrome\//.test(ua)
+              ? 'Chrome'
+              : /Safari\//.test(ua)
+                ? 'Safari'
+                : '浏览器';
+
+  const os = /iPhone/.test(ua)
+    ? 'iPhone'
+    : /iPad/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document)
+      ? 'iPad'
+      : /Android/.test(ua)
+        ? /Mobile/.test(ua)
+          ? 'Android'
+          : 'Android 平板'
+        : /Windows/.test(ua)
+          ? 'Windows'
+          : /Mac OS X|Macintosh/.test(ua)
+            ? 'Mac'
+            : /CrOS/.test(ua)
+              ? 'Chromebook'
+              : /Linux/.test(ua)
+                ? 'Linux'
+                : '设备';
+
+  return `${os} · ${browser}`;
 }
 
 function discoverOn() {
@@ -220,24 +256,51 @@ function setLobbyHint(text) {
   el.hidden = !text;
 }
 
-/** 大厅：可见开关的状态 + 顶部提示 + 空状态 */
+/** 大厅：可见开关的状态 + 提示 + 同网列表/空状态 */
 function refreshDiscoverUI() {
   const on = discoverOn();
   const toggle = $('discover-toggle');
   toggle.textContent = `同一网络可见：${on ? '开' : '关'}`;
   toggle.classList.toggle('on', on);
-  $('self-name').textContent = deviceLabel();
+  $('self-name').textContent = deviceName();
 
   const hasPeers = s.lastRooms.length > 0;
-  $('peer-grid').hidden = !hasPeers || !on;
-  $('lobby-empty').hidden = hasPeers || !on;
+  $('discover').hidden = !on;
+  $('lobby-list').hidden = !hasPeers;
+  $('lobby-empty').hidden = hasPeers;
+  $('lobby-actions').hidden = hasPeers;
 
   if (!on) {
     setLobbyHint('同一网络的人看不到这个房间');
+    $('lobby-empty').hidden = true;
+    $('lobby-actions').hidden = true;
     return;
   }
 
-  setLobbyHint(hasPeers ? '点击设备申请加入，对方同意就进同一个房间' : '');
+  if (!hasPeers) {
+    $('lobby-empty').textContent =
+      '还没发现同一网络里的其他设备 —— 在另一台设备上打开 SixDrop。手机请连同一个 Wi-Fi，用流量会算成不同网络。';
+    $('lobby-empty').hidden = false;
+    $('lobby-actions').hidden = false;
+    setLobbyHint('');
+    return;
+  }
+
+  $('lobby-empty').hidden = true;
+  $('lobby-actions').hidden = true;
+  setLobbyHint('点「申请加入」，对方同意后进同一个房间');
+}
+
+/** 网络诊断：两台设备只有「网络组」一样才可能互相发现 */
+async function showNetworkDiag() {
+  try {
+    const res = await fetch('/api/lobby/whoami');
+    if (!res.ok) throw new Error('诊断接口不可用');
+    const { tag, family } = await res.json();
+    setLobbyHint(`网络组 ${tag} · ${family}；两台设备这个值一样才能互相发现`);
+  } catch (err) {
+    setLobbyHint(err?.message || '诊断失败');
+  }
 }
 
 async function registerSelf() {
@@ -250,7 +313,7 @@ async function registerSelf() {
     await fetch('/api/lobby/register', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ code, device: deviceLabel() }),
+      body: JSON.stringify({ code, name: deviceName(), platform: platformLabel() }),
     });
   } catch {
     /* 大厅不可用不影响手动输码 */
@@ -297,7 +360,7 @@ async function refreshLobbyList() {
     const res = await fetch(`/api/lobby?exclude=${encodeURIComponent(s.code)}`);
     if (!res.ok) return;
     const data = await res.json();
-    renderPeers(data.rooms || []);
+    renderLobbyList(data.rooms || []);
   } catch {
     /* 网络抖一下，下一轮再说 */
   }
@@ -310,7 +373,7 @@ function fmtAge(ms) {
   return `${Math.round(seconds / 60)} 分钟前`;
 }
 
-/** 按设备名猜一个图标（手机 / 平板 / 电脑） */
+/** 按设备/平台猜一个图标（手机 / 平板 / 电脑） */
 function deviceIcon(kind) {
   const paths = {
     phone: '<rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M11 17.6h2"/>',
@@ -319,7 +382,7 @@ function deviceIcon(kind) {
       '<rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M9 20h6M12 16.5V20"/>',
   };
   const body = paths[kind] || paths.desktop;
-  return `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 }
 
 function iconFor(label) {
@@ -329,49 +392,57 @@ function iconFor(label) {
   return deviceIcon('desktop');
 }
 
-/** 大厅里的同网设备：一个设备一个方块，点一下就申请加入 */
-function renderPeers(rooms) {
+/** 大厅里的同网设备：一行一台，名字 + 平台 + 多久之前 + 申请加入 */
+function renderLobbyList(rooms) {
   s.lastRooms = Array.isArray(rooms) ? rooms : [];
 
-  const grid = $('peer-grid');
-  grid.innerHTML = '';
+  const ul = $('lobby-list');
+  ul.innerHTML = '';
 
   for (const room of s.lastRooms) {
-    const li = document.createElement('li');
+    const name = room.name || room.device || '未知设备';
+    const platform = room.platform || '';
 
-    const tile = document.createElement('button');
-    tile.type = 'button';
-    tile.className = 'peer-tile';
-    // 已经有人在敲门时，先别再去申请别人，免得两边互等
-    tile.disabled = Boolean(s.knockDevice);
-    tile.title = `${room.device || '未知设备'} · 点击申请加入`;
+    const li = document.createElement('li');
 
     const icon = document.createElement('span');
     icon.className = 'icon';
-    icon.innerHTML = iconFor(room.device);
+    icon.innerHTML = iconFor(platform);
 
-    const name = document.createElement('span');
-    name.className = 'name';
-    name.textContent = room.device || '未知设备';
+    const dev = document.createElement('span');
+    dev.className = 'dev';
+    const title = document.createElement('b');
+    title.textContent = name;
+    dev.appendChild(title);
+    if (platform) {
+      const sub = document.createElement('span');
+      sub.className = 'sub';
+      sub.textContent = platform;
+      dev.appendChild(sub);
+    }
 
-    const meta = document.createElement('span');
-    meta.className = 'meta';
-    meta.textContent = fmtAge(room.age);
+    const age = document.createElement('span');
+    age.className = 'age';
+    age.textContent = fmtAge(room.age);
 
-    tile.append(icon, name, meta);
-    tile.addEventListener('click', () => requestJoin(room.id, tile, meta));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = '申请加入';
+    // 已经有人在敲门时，先别再去申请别人，免得两边互等
+    btn.disabled = Boolean(s.knockDevice);
+    btn.addEventListener('click', () => requestJoin(room.id, btn, age));
 
-    li.appendChild(tile);
-    grid.appendChild(li);
+    li.append(icon, dev, age, btn);
+    ul.appendChild(li);
   }
 
   refreshDiscoverUI();
 }
 
-async function requestJoin(id, tile, meta) {
-  tile.disabled = true;
-  tile.classList.add('pending');
-  if (meta) meta.textContent = '申请中…';
+async function requestJoin(id, btn, age) {
+  btn.disabled = true;
+  btn.textContent = '申请中…';
+  if (age) age.textContent = '';
 
   try {
     const res = await fetch('/api/lobby/invite', {
@@ -391,9 +462,8 @@ async function requestJoin(id, tile, meta) {
     location.href = `/?invite=${encodeURIComponent(token)}`;
   } catch (err) {
     toast(err?.message || '申请失败');
-    tile.disabled = false;
-    tile.classList.remove('pending');
-    if (meta) meta.textContent = '点击申请';
+    btn.disabled = false;
+    btn.textContent = '申请加入';
     refreshLobbyList();
   }
 }
@@ -417,7 +487,7 @@ function onKnock(device) {
   s.knockDevice = name;
   $('knock-device').textContent = name;
   $('knock').hidden = false;
-  renderPeers(s.lastRooms);
+  renderLobbyList(s.lastRooms);
   toast(`${name} 想加入你的房间`);
 }
 
@@ -617,7 +687,7 @@ function connect(role) {
 
 function openSocket(role) {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const qs = new URLSearchParams({ code: s.code, role, device: deviceLabel() });
+  const qs = new URLSearchParams({ code: s.code, role, device: deviceName() });
   // 同网发现进来的先 pending，房主同意后才算数
   if (s.discover) qs.set('via', 'discover');
 
@@ -1808,11 +1878,11 @@ function resetAll() {
   stopLobbyPoll();
   hideKnock();
   s.lastRooms = [];
-  $('peer-grid').innerHTML = '';
-  $('peer-grid').hidden = true;
-  $('lobby-empty').hidden = false;
+  $('lobby-list').innerHTML = '';
+  $('lobby-empty').textContent = '';
+  $('lobby-empty').hidden = true;
+  $('discover').hidden = true;
   setLobbyHint('');
-  if ($('pair-dialog').open) $('pair-dialog').close();
 }
 
 async function keepAwake() {
@@ -2049,36 +2119,44 @@ $('discover-toggle').addEventListener('click', async () => {
   }
 });
 
+$('lobby-refresh').addEventListener('click', async () => {
+  await registerSelf();
+  await refreshLobbyList();
+  toast('已刷新');
+});
+
+$('lobby-diag').addEventListener('click', () => {
+  showNetworkDiag();
+});
+
 $('knock-admit').addEventListener('click', () => {
   hideKnock();
   sendSignal({ t: 'admit' });
-  renderPeers(s.lastRooms);
+  renderLobbyList(s.lastRooms);
   toast('已同意，正在建立直连');
 });
 
 $('knock-reject').addEventListener('click', () => {
   hideKnock();
   sendSignal({ t: 'reject', message: '房主拒绝了这次加入' });
-  renderPeers(s.lastRooms);
+  renderLobbyList(s.lastRooms);
   toast('已拒绝');
 });
 
-/* 配对新设备：取件码 / 输入对方的码都在这个弹窗里 */
-$('pair-open').addEventListener('click', () => {
-  const dialog = $('pair-dialog');
-  $('lobby-code').textContent = s.code || '------';
-  if (typeof dialog.showModal === 'function') dialog.showModal();
-  else dialog.setAttribute('open', '');
-  setTimeout(() => $('code')?.focus(), 60);
-});
+// 改个名字：同网里两台都是「Windows · Edge」的时候能分清
+$('rename').addEventListener('click', async () => {
+  const current = deviceName();
+  const next = window.prompt('给这台设备起个名字（别人会看到）', current);
+  if (next === null) return;
+  if (!setDeviceName(next)) {
+    toast('名字不能为空');
+    return;
+  }
 
-$('pair-close').addEventListener('click', () => {
-  $('pair-dialog').close();
-});
-
-// 点弹窗外的背板也能关
-$('pair-dialog').addEventListener('click', (ev) => {
-  if (ev.target === $('pair-dialog')) $('pair-dialog').close();
+  refreshDiscoverUI();
+  await registerSelf();
+  refreshLobbyList();
+  toast('名字已更新');
 });
 
 $('accept').addEventListener('click', async () => {

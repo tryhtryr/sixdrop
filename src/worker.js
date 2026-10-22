@@ -55,6 +55,17 @@ export default {
       return redeemInvite(request, env, url);
     }
 
+    // 网络诊断：只回一个短哈希和地址族，两台设备比一下就知道是不是同一组
+    if (url.pathname === '/api/lobby/whoami') {
+      const ip = String(
+        request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'dev',
+      )
+        .split(',')[0]
+        .trim();
+      const key = await subnetKey(request, env);
+      return json({ tag: key.slice(0, 8), family: ip.includes(':') ? 'IPv6' : 'IPv4' });
+    }
+
     // 兜底中转：打洞失败时把文件直传 R2，收件人走预签名链接下载
     if (url.pathname.startsWith('/api/relay/')) return handleRelay(request, env, url);
 
@@ -183,7 +194,11 @@ async function registerLobby(request, env) {
   return stub.fetch('https://lobby.internal/register', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ code, device: String(body.device || '') }),
+    body: JSON.stringify({
+      code,
+      name: String(body.name || body.device || ''),
+      platform: String(body.platform || ''),
+    }),
   });
 }
 

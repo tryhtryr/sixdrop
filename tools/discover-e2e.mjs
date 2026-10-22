@@ -86,7 +86,7 @@ async function waitLobbyCode(page) {
 /** 列表里出现某个设备名 */
 function waitDevice(page, label, timeout = 25000) {
   return page.waitForFunction(
-    (text) => [...document.querySelectorAll('#peer-grid .name')].some((el) => el.textContent === text),
+    (text) => [...document.querySelectorAll('#lobby-list .dev b')].some((el) => el.textContent === text),
     label,
     { timeout },
   );
@@ -94,14 +94,14 @@ function waitDevice(page, label, timeout = 25000) {
 
 function deviceGone(page, label, timeout = 15000) {
   return page.waitForFunction(
-    (text) => ![...document.querySelectorAll('#peer-grid .name')].some((el) => el.textContent === text),
+    (text) => ![...document.querySelectorAll('#lobby-list .dev b')].some((el) => el.textContent === text),
     label,
     { timeout },
   );
 }
 
 async function applyTo(page, label) {
-  await page.locator('.peer-tile', { hasText: label }).click();
+  await page.locator('#lobby-list li', { hasText: label }).locator('button').click();
   try {
     await page.waitForSelector('#view-room:not([hidden])', { timeout: 20000 });
   } catch (err) {
@@ -139,14 +139,14 @@ async function main() {
     // 固定的设备名，方便在列表里认出对方（也顺便验证设备名是从前端带上去的）
     await a.addInitScript((label) => {
       try {
-        localStorage.setItem('sixdrop.device', label);
+        localStorage.setItem('sixdrop.name', label);
       } catch {
         /* 忽略 */
       }
     }, A_LABEL);
     await b.addInitScript((label) => {
       try {
-        localStorage.setItem('sixdrop.device', label);
+        localStorage.setItem('sixdrop.name', label);
       } catch {
         /* 忽略 */
       }
@@ -176,13 +176,20 @@ async function main() {
     await waitDevice(a, B_LABEL);
 
     const tile = await b.evaluate((label) => {
-      const el = [...document.querySelectorAll('#peer-grid .peer-tile')].find(
-        (x) => x.querySelector('.name').textContent === label,
+      const el = [...document.querySelectorAll('#lobby-list li')].find(
+        (x) => x.querySelector('.dev b').textContent === label,
       );
-      return el ? { age: el.querySelector('.meta').textContent, icon: Boolean(el.querySelector('.icon svg')) } : null;
+      return el
+        ? {
+            age: el.querySelector('.age').textContent,
+            platform: el.querySelector('.dev .sub')?.textContent || '',
+            icon: Boolean(el.querySelector('.icon svg')),
+          }
+        : null;
     }, A_LABEL);
-    assert.ok(tile, '设备网格里应该有甲机');
-    assert.ok(tile.icon, '设备块上应该有图标');
+    assert.ok(tile, '同网列表里应该有甲机');
+    assert.ok(tile.icon, '列表行上应该有设备图标');
+    assert.match(tile.platform, /Edge|Chrome|Safari|Firefox/, '副标题应该是浏览器/系统');
     step(`互相发现：乙机看到 ${A_LABEL}（${tile.age}）`);
 
     /* ---- 2. 申请 → 房主收到敲门，但还没进房间 ---- */

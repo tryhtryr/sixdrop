@@ -136,7 +136,6 @@ async function main() {
     const code = (await sender.locator('#lobby-code').textContent()).trim();
     step(`取件码 ${code}`);
 
-    await receiver.click('#pair-open');
     await receiver.fill('#code', code);
     await receiver.press('#code', 'Enter');
 

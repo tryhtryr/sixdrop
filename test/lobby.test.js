@@ -45,8 +45,8 @@ const req = (path, method = 'GET', body = null) => ({
   json: async () => body || {},
 });
 
-const register = (lobby, code, device = 'Chrome · Windows') =>
-  lobby.fetch(req('/register', 'POST', { code, device }));
+const register = (lobby, code, name = '蓝色的海豚', platform = 'Windows · Edge') =>
+  lobby.fetch(req('/register', 'POST', { code, name, platform }));
 
 const list = (lobby, exclude = '') =>
   lobby.fetch(req(`/list${exclude ? `?exclude=${exclude}` : ''}`));
@@ -69,30 +69,31 @@ async function test(name, fn) {
 
 await test('登记后能在大厅列表里看到，且不暴露取件码', async () => {
   const { lobby } = newLobby();
-  await register(lobby, 'ABC234', 'Chrome · Windows');
+  await register(lobby, 'ABC234');
 
   const res = await list(lobby);
   assert.equal(res.status, 200);
   const body = await res.json();
   assert.equal(body.rooms.length, 1);
-  assert.equal(body.rooms[0].device, 'Chrome · Windows');
+  assert.equal(body.rooms[0].name, '蓝色的海豚');
   assert.ok(body.rooms[0].id, '应该给一个句柄 id');
   assert.equal(typeof body.rooms[0].age, 'number');
 
   // 取件码不能出现在响应里
   assert.ok(!JSON.stringify(body).includes('ABC234'), '列表不能带取件码');
-  assert.deepEqual(Object.keys(body.rooms[0]).sort(), ['age', 'device', 'id']);
+  assert.equal(body.rooms[0].platform, 'Windows · Edge');
+  assert.deepEqual(Object.keys(body.rooms[0]).sort(), ['age', 'id', 'name', 'platform']);
 });
 
 await test('同一个码重复登记只保留一条，id 不变', async () => {
   const { lobby } = newLobby();
   const first = await (await register(lobby, 'ABC234')).json();
-  const second = await (await register(lobby, 'ABC234', 'Safari · iPhone')).json();
+  const second = await (await register(lobby, 'ABC234', '安静的水獭', 'iPhone · Safari')).json();
 
   assert.equal(first.id, second.id, '重复登记应该复用同一条');
   const body = await (await list(lobby)).json();
   assert.equal(body.rooms.length, 1);
-  assert.equal(body.rooms[0].device, 'Safari · iPhone', '设备名应该更新');
+  assert.equal(body.rooms[0].name, '安静的水獭', '名字应该更新');
 });
 
 await test('exclude 过滤掉自己', async () => {
@@ -102,8 +103,8 @@ await test('exclude 过滤掉自己', async () => {
 
   const mine = await (await list(lobby, 'ABC234')).json();
   assert.deepEqual(
-    mine.rooms.map((r) => r.device),
-    ['Chrome · Windows'],
+    mine.rooms.map((r) => r.name),
+    ['蓝色的海豚'],
   );
   assert.equal((await (await list(lobby)).json()).rooms.length, 2);
 });

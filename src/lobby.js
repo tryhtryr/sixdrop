@@ -10,7 +10,8 @@ const ENTRY_TTL_MS = 3 * 60 * 1000;
 const INVITE_TTL_MS = 60 * 1000;
 const MAX_ENTRIES = 20;
 const MAX_INVITES = 40;
-const DEVICE_MAX = 40;
+const NAME_MAX = 16;
+const PLATFORM_MAX = 32;
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 const CODE_RE = /^[2-9A-HJ-NP-Z]{6}$/;
@@ -68,16 +69,19 @@ export class Lobby {
     const code = String(body.code || '').toUpperCase();
     if (!CODE_RE.test(code)) return json({ error: 'bad code' }, 400);
 
-    const device = String(body.device || '').slice(0, DEVICE_MAX) || '未知设备';
+    // name 是随机起的名字（「蓝色的海豚」），platform 是「Android · Edge」这种副标题
+    const name = (String(body.name || body.device || '').slice(0, NAME_MAX) || '未知设备').trim();
+    const platform = String(body.platform || '').slice(0, PLATFORM_MAX);
     const list = await this.rooms();
     const now = Date.now();
 
     let entry = list.find((e) => e.code === code);
     if (entry) {
-      entry.device = device;
+      entry.name = name;
+      entry.platform = platform;
       entry.ts = now;
     } else {
-      entry = { id: randomId(8), code, device, ts: now };
+      entry = { id: randomId(8), code, name, platform, ts: now };
       list.push(entry);
     }
 
@@ -109,7 +113,12 @@ export class Lobby {
       .filter((e) => e.code !== exclude)
       .sort((a, b) => b.ts - a.ts)
       // 注意：不返回 code
-      .map((e) => ({ id: e.id, device: e.device, age: Math.max(0, now - e.ts) }));
+      .map((e) => ({
+        id: e.id,
+        name: e.name || e.device || '未知设备',
+        platform: e.platform || '',
+        age: Math.max(0, now - e.ts),
+      }));
 
     return json({ rooms });
   }

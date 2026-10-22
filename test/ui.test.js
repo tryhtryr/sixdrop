@@ -58,38 +58,33 @@ await test('房间面板路由覆盖 waiting / ask / xfer / chat 四态', async 
   }
 });
 
-await test('大厅是设备优先：设备网格 + 自己的设备卡 + 配对弹窗', async () => {
+await test('大厅里取件码和同网设备同时在场', async () => {
   for (const id of [
     'view-lobby',
-    'peer-grid',
-    'lobby-empty',
-    'lobby-hint',
-    'self-tile',
-    'self-name',
-    'discover-toggle',
-    'pair-open',
-    'pair-dialog',
-    'pair-close',
     'lobby-code',
     'code',
     'join',
     'copy',
     'copy-link',
+    'self-name',
+    'rename',
+    'discover-toggle',
+    'lobby-hint',
+    'discover',
+    'lobby-list',
+    'lobby-empty',
   ]) {
     assert.ok(htmlIds.has(id), `大厅缺少 ${id}`);
   }
 
   const lobby = /<section id="view-lobby"[\s\S]*?<\/section>/.exec(html)[0];
+  assert.match(lobby, /id="lobby-code"/, '取件码要在大厅里');
+  assert.match(lobby, /id="join"/, '输码框要在大厅里');
+  assert.match(lobby, /id="discover"/, '同网设备区要在大厅里');
+  assert.match(lobby, /id="lobby-list"/, '同网设备列表要在大厅里');
   assert.ok(!/type="file"/.test(lobby), '大厅不该有文件选择框');
   assert.ok(!/class="tab/.test(lobby), '大厅不该有标签页');
-  assert.match(lobby, /id="peer-grid"/, '大厅应该有设备网格');
-  assert.match(lobby, /id="self-tile"/, '大厅应该有自己设备那一栏');
-
-  // 取件码和输码都收进了「配对新设备」弹窗
-  const dialog = /<dialog id="pair-dialog"[\s\S]*?<\/dialog>/.exec(html)[0];
-  assert.match(dialog, /id="lobby-code"/);
-  assert.match(dialog, /id="join"/);
-  assert.match(dialog, /id="code"/);
+  assert.ok(!/id="pair-dialog"/.test(html), '不应该再有「配对新设备」弹窗');
 });
 
 await test('房间里有「收发文件 / 消息」两个标签', async () => {

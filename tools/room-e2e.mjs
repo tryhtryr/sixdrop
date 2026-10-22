@@ -82,7 +82,6 @@ async function waitLobbyCode(page) {
 
 /** 在大厅输入对方的码加入（会整页跳 /?c=） */
 async function joinByCode(page, code) {
-  await page.click('#pair-open');
   await page.fill('#code', code);
   await page.press('#code', 'Enter');
   await page.waitForSelector('#view-room:not([hidden])', { timeout: 30000 });
