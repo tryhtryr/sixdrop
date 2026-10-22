@@ -103,8 +103,12 @@ async function openSocket(request, env, url) {
     return json({ error: 'expected websocket' }, 426);
   }
 
+  // 把「这个房间属于哪个同网大厅」带上：房主断线时房间自己把大厅条目撤掉
+  const forwardedUrl = new URL(request.url);
+  forwardedUrl.searchParams.set('seat', await subnetKey(request, env));
+
   const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
-  return stub.fetch(request);
+  return stub.fetch(new Request(forwardedUrl, request));
 }
 
 /* ---------------- 同网发现（大厅） ---------------- */

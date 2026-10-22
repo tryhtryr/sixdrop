@@ -91,6 +91,9 @@ export class Room {
     if (others.length >= 2) return new Response('room full', { status: 409 });
 
     const device = (url.searchParams.get('device') || '').slice(0, 40);
+    // 这两个字段只给「房主断线时撤销大厅登记」用，来自 Worker（seat 是服务端算的）
+    const seat = url.searchParams.get('seat') || '';
+    const code = (url.searchParams.get('code') || '').toUpperCase();
 
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
@@ -101,7 +104,7 @@ export class Room {
     // 手输取件码进来的直接准入——6 位码本身就是凭证
     const viaDiscover = url.searchParams.get('via') === 'discover';
     const admitted = role === 'sender' || !viaDiscover;
-    server.serializeAttachment({ role, admitted, device });
+    server.serializeAttachment({ role, admitted, device, seat, code });
 
     server.send(JSON.stringify({ t: 'joined', role, admitted }));
 
@@ -238,6 +241,9 @@ export class Room {
     const peers = this.ctx.getWebSockets().filter((peer) => peer !== ws);
     const admitted = peers.filter((peer) => peer.deserializeAttachment()?.admitted).length;
 
+    // 房主走了：顺手把自己的同网大厅条目撤掉，别让别人看到一间空房
+    if (from === 'sender' && att?.seat && att?.code) this.unregisterLobby(att.seat, att.code);
+
     for (const peer of peers) {
       try {
         peer.send(JSON.stringify({ t: 'peer-left', from }));
@@ -245,6 +251,22 @@ export class Room {
       } catch {
         /* 忽略 */
       }
+    }
+  }
+
+  /** 房间 → 大厅：把这个房间从同网列表里摘掉（失败就算了，条目会自己过期） */
+  unregisterLobby(seat, code) {
+    try {
+      const lobby = this.env?.LOBBY?.get(this.env.LOBBY.idFromName(seat));
+      lobby
+        ?.fetch('https://lobby.internal/hide', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ code }),
+        })
+        .catch(() => {});
+    } catch {
+      /* 忽略 */
     }
   }
 

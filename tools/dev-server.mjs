@@ -158,7 +158,8 @@ function getRoom(code) {
   let entry = rooms.get(code);
   if (!entry) {
     const ctx = createCtx(code);
-    entry = { ctx, room: new Room(ctx, {}) };
+    // env 在文件后面才定义，这里拿的是同一个对象（请求发生时早已初始化）
+    entry = { ctx, room: new Room(ctx, env) };
     rooms.set(code, entry);
   }
   return entry;

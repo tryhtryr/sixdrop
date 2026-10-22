@@ -193,6 +193,33 @@ await test('大厅点进来前能问房主还在不在', async () => {
   );
 });
 
+await test('房主断线时把自己在大厅的登记撤掉', async () => {
+  const ctx = new FakeCtx();
+  const calls = [];
+  const env = {
+    LOBBY: {
+      idFromName: (name) => name,
+      get: () => ({
+        fetch: async (url, init) => {
+          calls.push({ url, body: init?.body });
+          return new FakeResponse('ok');
+        },
+      }),
+    },
+  };
+
+  const room = new Room(ctx, env);
+  await room.fetch({ url: 'https://room.internal/claim', method: 'POST' });
+
+  const sender = await open(room, 'sender', { seat: 'seat-1', code: 'ABC234' });
+  sender.server.close();
+  await room.webSocketClose(sender.server);
+
+  assert.equal(calls.length, 1, '应该通知一次大厅');
+  assert.match(calls[0].url, /\/hide$/);
+  assert.deepEqual(JSON.parse(calls[0].body), { code: 'ABC234' });
+});
+
 await test('信令只转发给对方，且身份由服务端标注', async () => {
   const { room } = await newRoom();
   const sender = await open(room, 'sender');
