@@ -160,6 +160,21 @@ async function main() {
       };
     });
 
+    // 发送端制造一次「队列满」抖动：第一次发数据块后的 3 秒内全抛 queue is full，
+    // 用来验证发送端会等对方接住（最长 30 秒），而不是 2 秒就把传输判死
+    await sender.addInitScript(() => {
+      const original = RTCDataChannel.prototype.send;
+      let stallUntil = 0;
+      RTCDataChannel.prototype.send = function (...args) {
+        if (typeof args[0] === 'string') return original.apply(this, args);
+        if (!stallUntil) stallUntil = Date.now() + 3000;
+        if (Date.now() < stallUntil) {
+          throw new DOMException('send queue is full', 'OperationError');
+        }
+        return original.apply(this, args);
+      };
+    });
+
     /* ---- 1. 打开页面：只有取件码 + 输码框 ---- */
     await sender.goto(base);
     const code = await waitLobbyCode(sender);

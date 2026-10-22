@@ -652,6 +652,8 @@ function fail(title, text) {
 
   // 先取诊断快照，closePeer 会清空候选计数
   const diag = diagnostic();
+  // 已经传过数据说明直连本来是通的，这次是传输中断，不是打洞问题
+  const interrupted = s.sentBytes > 0 || s.receivedTotal > 0 || s.sending;
 
   s.done = true;
   clearTimeout(s.joinTimer);
@@ -662,7 +664,9 @@ function fail(title, text) {
 
   $('error-title').textContent = title;
   $('error-text').textContent = text || '';
-  $('error-diag').textContent = diag;
+  $('error-diag').textContent = interrupted
+    ? '直连本来是通的（已经传过数据），这次是传输中断；换成「重新尝试」会用同一个取件码重连。'
+    : diag;
   // 发送方有文件可以直接传；接收方只能请对方传
   $('use-relay').hidden = !(
     s.relayEnabled && (s.files.length > 0 || s.role === 'receiver')
@@ -670,7 +674,7 @@ function fail(title, text) {
   show('error');
 
   // 让对端也知道这次打不通，否则它会一直停在等待页
-  sendSignal({ t: 'fail', title });
+  sendSignal({ t: 'fail', title, interrupted });
 }
 
 /**
@@ -867,7 +871,12 @@ async function onSignal(msg) {
       break;
 
     case 'fail':
-      fail(msg.title || '直连失败', '对方那边没能建立直连，可以请他改用中转。');
+      fail(
+        msg.title || '直连失败',
+        msg.interrupted || s.receivedTotal > 0
+          ? '对方那边传输中断了（网络抖动或对方卡住）。点「重新尝试」会用同一个取件码重连，也可以改用中转。'
+          : '对方那边没能建立直连，可以请他改用中转。',
+      );
       break;
 
     case 'text':
@@ -1337,7 +1346,15 @@ async function beginSending() {
     stopKeepalive();
     keepAwakeOff();
   } catch (err) {
-    fail('发送失败', err?.message || String(err));
+    // 已经传过一部分就不是「打洞失败」，别让用户以为是网络连不上
+    if (s.sentBytes > 0) {
+      fail(
+        '传输中断',
+        `${err?.message || err}（已经发出去一部分，网络恢复后可以点「重新尝试」用同一个取件码重连）`,
+      );
+    } else {
+      fail('发送失败', err?.message || String(err));
+    }
   } finally {
     // 锁一定要放掉，否则同一房间里的第二批文件发不出去
     s.sending = false;
@@ -1376,15 +1393,32 @@ function waitAccept() {
   });
 }
 
-/** 队列满时等一拍再重试，别让一次抖动把整个传输打死 */
+/**
+ * 队列满时不要马上认输：手机在 5G / 双WAN 上抖动几秒很正常，
+ * 等对方把缓冲接住就行（最长 30 秒，期间每 500ms 看一次）。
+ */
 async function sendChunk(dc, buf) {
-  for (let attempt = 0; ; attempt += 1) {
+  const deadline = Date.now() + 30000;
+  let stalled = false;
+
+  for (;;) {
     try {
       dc.send(buf);
+      if (stalled) {
+        if (s.count > 1) overallLine(s.sentBytes, s.totalSize, s.currentRow);
+        else $('xfer-sub').textContent = '';
+      }
       return;
     } catch (err) {
-      if (!/queue is full/i.test(err?.message || '') || attempt > 40) throw err;
-      await new Promise((r) => setTimeout(r, 50));
+      if (!/queue is full/i.test(err?.message || '')) throw err;
+      if (dc.readyState !== 'open') throw new Error('数据通道已经断开');
+      if (Date.now() > deadline) throw new Error('发送队列一直满：对方收得慢，或者网络卡住了');
+
+      if (!stalled) {
+        stalled = true;
+        $('xfer-sub').textContent = '网络卡了一下，正在等对方接住…';
+      }
+      await waitForDrain(dc);
     }
   }
 }
