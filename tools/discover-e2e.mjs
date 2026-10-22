@@ -102,7 +102,17 @@ function deviceGone(page, label, timeout = 15000) {
 
 async function applyTo(page, label) {
   await page.locator('.peer-tile', { hasText: label }).click();
-  await page.waitForSelector('#view-room:not([hidden])', { timeout: 20000 });
+  try {
+    await page.waitForSelector('#view-room:not([hidden])', { timeout: 20000 });
+  } catch (err) {
+    const state = await page.evaluate(() => ({
+      url: location.href,
+      lobby: !document.getElementById('view-lobby').hidden,
+      toast: document.getElementById('toast').textContent,
+      hint: document.getElementById('lobby-hint').textContent,
+    }));
+    throw new Error(`点「${label}」后没进房间：${JSON.stringify(state)}`);
+  }
 }
 
 async function main() {

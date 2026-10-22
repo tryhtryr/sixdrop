@@ -686,6 +686,11 @@ async function onSignal(msg) {
         setStatus('等待对方同意…');
         s.joinTimer = setTimeout(giveUpOnApproval, APPROVE_TIMEOUT);
       }
+      // 信令真的连上了才把自己挂到大厅：否则别人点进来会是一个没人的房间
+      if (s.role === 'sender' && !$('view-lobby').hidden) {
+        registerSelf();
+        startLobbyPoll();
+      }
       break;
 
     case 'knock':
@@ -1946,8 +1951,7 @@ async function boot() {
     return;
   }
 
-  registerSelf();
-  startLobbyPoll();
+  // 登记到同网大厅由 `joined` 触发：连上了才算「可被发现」
   connect('sender');
 }
 
