@@ -11,10 +11,10 @@
 当前 HEAD：`fix(lobby): only advertise the room after the signalling socket is up` 之后的小提交
 （见 `git log`）。
 
-**线上已部署这一版**：2026-10-22，Version ID `2785c3a0-e957-4ac5-9462-f2b3391617d4`，
+**线上已部署这一版**：2026-10-22，Version ID `3fd0a732-728c-4779-b9f4-133ad5deb199`，
 `env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
 （e2e / chat-e2e / room-e2e / discover-e2e）。
-（这一版已按用户要求去掉「同一网络房间」，大厅只有「自动发现 + 取件码」两条路。）
+（大厅只有「自动发现 + 取件码」两条路；发送队列满按抖动处理，见第 7 节的坑。）
 
 **注意**：本地 `main` 和 `origin/main` 已经分叉（远端还停在 slice2 那几次提交），
 本地这台机器的部署就是从本地目录 `wrangler deploy` 的，所以**线上对应当前本地工作树**。
@@ -252,6 +252,7 @@ BASE_URL=https://sixdrop.dev node tools/discover-e2e.mjs
 | **两套进入逻辑打架** | 手输码也跳 `/?c=`，否则会开出第二条 WebSocket，offer/answer 分属不同连接 |
 | **`boot()` 与深链冲突** | 深链启动时设 `window.__skipBoot = true`；`leaveRoom()` 里要把它清回去，否则离开后建不了房 |
 | **`beginSending` 的发送锁** | 结束必须 `s.sending = false`，否则第二批发不出去（已用 `finally` 兜住） |
+| **`send queue is full` 是抖动不是断链** | 手机上真会撞到（5G / 双WAN 抖动、对方写入卡住）。旧实现 2 秒（40×50ms）就 `fail()`，把两边都踢到错误页。现在 `sendChunk` 会等 `bufferedamountlow`（或 500ms 再试）最长 30 秒，期间副标题提示「网络卡了一下」；只有通道 `readyState !== 'open'` 或超时才真失败，且标题用「传输中断」、诊断行说明「直连本来是通的」。`room-e2e` 里注入了 3 秒 queue-is-full 抖动做回归 |
 | **decline 不要 resetAll** | 拒绝只取消这一批，房间要留 |
 | **不要把本地 dev-server 通过当生产通过** | DO 是模拟的，真实信令时序测不出来 |
 | **大厅和房间会有同名需求** | 码分两个 id：`#lobby-code`（大号）和 `#room-code`（房间头部）；写码统一走 `setCode()` |
