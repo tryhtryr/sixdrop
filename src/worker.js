@@ -214,15 +214,24 @@ async function createInvite(request, env) {
   if (!/^[2-9A-HJ-NP-Z]{8}$/.test(id)) return json({ error: 'bad id' }, 400);
 
   const stub = await lobbyOf(request, env);
-  const res = await stub.fetch('https://lobby.internal/invite', {
+  return stub.fetch('https://lobby.internal/invite', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ id }),
   });
+}
+
+async function redeemInvite(request, env, url) {
+  const token = url.pathname.slice('/api/invite/'.length).toUpperCase();
+  if (!INVITE_RE.test(token)) return json({ error: 'bad invite' }, 400);
+
+  const stub = await lobbyOf(request, env);
+  const res = await stub.fetch(`https://lobby.internal/invite/${token}`);
   if (!res.ok) return res;
 
-  // 大厅条目会多活几分钟；点进来之前先确认房主还在线
-  const { token, code } = await res.json();
+  const { code } = await res.json();
+
+  // 大厅条目会多活几分钟：换码之前先确认房主还在线
   const room = env.ROOMS.get(env.ROOMS.idFromName(code));
   const alive = await room.fetch('https://room.internal/alive');
   if (!alive.ok) {
@@ -237,15 +246,7 @@ async function createInvite(request, env) {
     return json({ error: 'host-left' }, 404);
   }
 
-  return json({ token, expiresIn: 60 });
-}
-
-async function redeemInvite(request, env, url) {
-  const token = url.pathname.slice('/api/invite/'.length).toUpperCase();
-  if (!INVITE_RE.test(token)) return json({ error: 'bad invite' }, 400);
-
-  const stub = await lobbyOf(request, env);
-  return stub.fetch(`https://lobby.internal/invite/${token}`);
+  return json({ code });
 }
 
 /* ---------------- 中转完成后的分享页 ---------------- */

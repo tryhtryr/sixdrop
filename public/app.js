@@ -1922,7 +1922,12 @@ function startReceive(code, { discover = false } = {}) {
 
   try {
     const res = await fetch(`/api/invite/${encodeURIComponent(token)}`);
-    if (!res.ok) throw new Error('邀请已失效，回大厅重新申请');
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(
+        data.error === 'host-left' ? '对方已经离开了，回大厅再看看' : '邀请已失效，回大厅重新申请',
+      );
+    }
     const { code } = await res.json();
     toast('已申请，等对方同意…');
     startReceive(code, { discover: true });

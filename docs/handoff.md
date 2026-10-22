@@ -8,11 +8,11 @@
 **仓库：<https://github.com/tryhtryr/sixdrop>**（无 LICENSE，public 但非开源）
 **本地：`E:\sixdrop`**（唯一副本）
 
-当前 HEAD：`8254629 fix(room): reject discovery joins when the host is already gone`
-（`git log` 里这一条及之后的小提交）。
+当前 HEAD：`fix(lobby): only advertise the room after the signalling socket is up` 之后的小提交
+（见 `git log`）。
 
-**线上已部署这一版**：2026-10-22，Version ID `c5fa6c4b-4580-4f16-9678-06f7b30d8835`，
-新增 `env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
+**线上已部署这一版**：2026-10-22，Version ID `92b966b8-388c-4f59-ac64-46ca834616f6`，
+`env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
 （e2e / chat-e2e / room-e2e / discover-e2e）。
 
 **注意**：本地 `main` 和 `origin/main` 已经分叉（远端还停在 slice2 那几次提交），
@@ -59,8 +59,8 @@
 
 | 事件 | 结果 |
 |---|---|
-| 打开页面 | 建房拿码，停在大厅（`show('lobby')`）、登记到同网大厅、开始轮询 |
-| 点大厅里的设备方块 | 换一次性 invite → 跳 `/?invite=…` → 连 `via=discover`（pending） |
+| 打开页面 | 建房拿码，停在大厅（`show('lobby')`）；**WS `joined` 之后**才登记到同网大厅并开始轮询 |
+| 点大厅里的设备方块 | 换一次性 invite → 跳 `/?invite=…` → 换码时校验房主在线 → 连 `via=discover`（pending） |
 | 房主点「同意」 | 访客被 admit，两边进同一个房间；房主进房间时撤销自己的登记 |
 | 房主点「拒绝」 | 访客收到 reject，回大厅重新开一间 |
 | 「配对新设备」里输码 | 跳 `/?c=CODE`，直接进房间（`startReceive()`） |
@@ -83,6 +83,9 @@
 - **加入**：`POST /api/lobby/invite {id}` 换 12 位一次性 token（60 秒有效、只能用一次），
   页面拿 token 换回码后才连房间，连接带 `via=discover` → 房间侧 `admitted=false`，
   只允许发 `knock`，房主 `admit` 之后才转发信令（这套在 `src/room.js`，本来就有测试）。
+- **幽灵条目**：大厅条目会多活 3 分钟；`/api/invite/<token>` 换码时会问一次房间
+  `/alive`（有没有 sender 在线），没人在线就返回 `404 host-left` 并把那条登记撤掉，
+  页面提示「对方已经离开了」后回大厅。房间的 upgrade 里还有一道同样的兜底。
 - **可见性**：默认开，开关在 `localStorage['sixdrop.discover']`；关掉立刻 `POST /api/lobby/hide`。
   关页面用 `sendBeacon` 撤销（撤不掉也会 3 分钟过期）。
 - **路由**：`GET /api/lobby`、`POST /api/lobby/register`、`POST /api/lobby/hide`、
@@ -248,6 +251,8 @@ BASE_URL=https://sixdrop.dev node tools/discover-e2e.mjs
 | **未准入的连接不能广播 peer-joined** | 否则房主在审批前就被拉进房间，然后自动拒掉客人（已修） |
 | **邀请是一次性的** | `GET /api/invite/<token>` 换过就删；页面刷新后要重新申请 |
 | **同网列表有 3 分钟有效期** | 前端在大厅每 20 秒心跳续期；关页面用 `sendBeacon` 撤销。测试里用带随机后缀的设备名，别和残留条目撞名 |
+| **Durable Object 不随 deploy 立刻换代码** | 已活着的 DO 实例会继续跑旧代码（这次给 Lobby 的 invite 响应加 `code` 就踩了：Worker 拿到 undefined，全被当成 ghost）。要么等它被驱逐，要么别让新代码依赖旧的 DO 响应字段 —— 现在的 `/alive` 校验放在 redeem 端，不依赖新字段 |
+| **大厅条目要等 WS 连上才登记** | 否则别人点进来时 `/alive` 还查不到 sender，一拍就被当成 ghost 撤掉（生产上抓到过一次竞态） |
 | **`[hidden]` 靠 CSS** | `style.css` 里 `[hidden] { display: none !important }`，别用 `display` 覆盖它 |
 
 ## 八、测试与资产

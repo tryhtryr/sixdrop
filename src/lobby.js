@@ -132,8 +132,7 @@ export class Lobby {
 
     await this.save('invites', invites);
     await this.arm();
-    // code 只回给 Worker 做存活检查，不会出现在 /list 里
-    return json({ token, code: entry.code, expiresIn: INVITE_TTL_MS / 1000 });
+    return json({ token, expiresIn: INVITE_TTL_MS / 1000 });
   }
 
   async redeemInvite(token) {
