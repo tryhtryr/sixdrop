@@ -155,6 +155,23 @@ await test('同网发现进来的访客要房主审批', async () => {
   assert.deepEqual(sender.server.sent.at(-1), { t: 'peers', n: 2 });
 });
 
+await test('房里没房主时，同网发现进来的直接回绝', async () => {
+  const { room } = await newRoom();
+  // 房间建了但建房的人已经走掉（大厅里还挂着一条过期条目的场景）
+  const guest = await open(room, 'receiver', { via: 'discover' });
+
+  assert.equal(guest.server.sent[0].admitted, false);
+  assert.ok(
+    guest.server.sent.some((m) => m.t === 'reject' && /离开/.test(m.message)),
+    '没有房主就该直接回绝，别让访客干等',
+  );
+  assert.equal(
+    guest.server.sent.some((m) => m.t === 'knock'),
+    false,
+    '没人可敲就不该发 knock',
+  );
+});
+
 await test('信令只转发给对方，且身份由服务端标注', async () => {
   const { room } = await newRoom();
   const sender = await open(room, 'sender');

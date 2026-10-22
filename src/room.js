@@ -110,8 +110,21 @@ export class Room {
 
     if (!admitted) {
       const owner = others.find((w) => w.deserializeAttachment()?.role === 'sender');
+
+      if (!owner) {
+        // 大厅里可能还挂着一条已经关掉的房间：直接回绝，别让访客干等一分钟
+        try {
+          server.send(
+            JSON.stringify({ t: 'reject', message: '对方好像已经离开了，回大厅再看看' }),
+          );
+        } catch {
+          /* 忽略 */
+        }
+        return new Response(null, { status: 101, webSocket: client });
+      }
+
       try {
-        owner?.send(JSON.stringify({ t: 'knock', device: device || '未知设备' }));
+        owner.send(JSON.stringify({ t: 'knock', device: device || '未知设备' }));
       } catch {
         /* 忽略 */
       }
