@@ -70,6 +70,8 @@ const s = {
   discover: false,
   knockDevice: '',
   lastRooms: [],
+  diag: null,
+  diagLoading: false,
   lock: null,
   // 候选统计，失败时用来判断到底是 STUN 没通还是对称 NAT
   ice: { host: 0, srflx: 0, relay: 0, v6: 0 },
@@ -312,9 +314,21 @@ function refreshDiscoverUI() {
   }
 
   if (!hasPeers) {
-    $('lobby-empty').textContent = room
-      ? `「${room}」里还没有其他设备。让对方也点「同一网络房间」输入同一个名字。`
-      : '同一网络里还没发现设备。双 WAN、两台走不同运营商、或一台 IPv4 一台 IPv6 时，按 IP 是对不上的 —— 点下面的「同一网络房间」，两台输同一个名字就行。';
+    // 没人的时候顺手把网络组查出来，两台一对就知道是不是同一个出口
+    if (!s.diag && !s.diagLoading) loadDiag();
+
+    const esc = (text) =>
+      String(text).replace(
+        /[&<>"']/g,
+        (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+      );
+    const diag = s.diag
+      ? `当前网络组 <b>${esc(s.diag.tag)}</b> · ${esc(s.diag.family)}${room ? `（房间「${esc(room)}」）` : ''}。<br>`
+      : '';
+
+    $('lobby-empty').innerHTML = room
+      ? `${diag}「${esc(room)}」里还没有其他设备。让对方也点「同一网络房间」输入同一个名字。`
+      : `${diag}同一网络里还没发现设备。两台设备的网络组一样才能互相发现；不一样就用上面的取件码或链接。<br>双 WAN 分流、手机用流量、一台 IPv4 一台 IPv6 都会让网络组不同。`;
     $('lobby-empty').hidden = false;
     $('lobby-actions').hidden = false;
     setLobbyHint('');
@@ -327,11 +341,27 @@ function refreshDiscoverUI() {
 }
 
 /** 网络诊断：两台设备只有「网络组」一样才可能互相发现 */
+async function loadDiag() {
+  if (s.diagLoading) return;
+  s.diagLoading = true;
+  try {
+    const res = await fetch(`/api/lobby/whoami?room=${encodeURIComponent(roomName())}`);
+    if (res.ok) s.diag = await res.json();
+  } catch {
+    /* 诊断拿不到不影响列表 */
+  } finally {
+    s.diagLoading = false;
+    refreshDiscoverUI();
+  }
+}
+
+/** 网络诊断：两台设备只有「网络组」一样才可能互相发现 */
 async function showNetworkDiag() {
   try {
     const res = await fetch(`/api/lobby/whoami?room=${encodeURIComponent(roomName())}`);
     if (!res.ok) throw new Error('诊断接口不可用');
     const { tag, family } = await res.json();
+    s.diag = { tag, family };
     setLobbyHint(
       roomName()
         ? `网络组 ${tag}（房间「${roomName()}」）。两台设备房间名一样就会是同一个组。`
@@ -1897,6 +1927,8 @@ function resetAll() {
   s.discover = false;
   s.knockDevice = '';
   s.lastRooms = [];
+  s.diag = null;
+  s.diagLoading = false;
   s.chain = Promise.resolve();
 
   $('bar').style.width = '0%';
@@ -2181,6 +2213,7 @@ $('lobby-room').addEventListener('click', async () => {
 
   const prev = current;
   setRoomName(next);
+  s.diag = null; // 换房间就是换网络组，诊断要重新查
   refreshDiscoverUI();
 
   // 换房间 = 换大厅分组：先把旧的撤掉，再在新分组里登记
