@@ -289,38 +289,6 @@ async function main() {
     await waitDevice(b, A_LABEL, 20000);
     step('再打开又能被发现');
 
-    /* ---- 8. 同一网络房间：名字一样才互相看得到（双 WAN / 跨协议族靠这个） ---- */
-    const roomName = `E2E-房间-${TAG}`;
-
-    // A 改名进房间：B 还在自动分组，就看不到它了
-    a.once('dialog', (dialog) => dialog.accept(roomName));
-    await a.click('#lobby-room');
-    await a.waitForFunction(
-      (name) => document.getElementById('lobby-room').textContent.includes(name),
-      roomName,
-      { timeout: 10000 },
-    );
-    await deviceGone(b, A_LABEL, 20000);
-    step(`A 进入房间「${roomName}」，自动分组的 B 就看不到它了`);
-
-    // B 也输同一个名字 → 立刻看得见
-    b.once('dialog', (dialog) => dialog.accept(roomName));
-    await b.click('#lobby-room');
-    await waitDevice(b, A_LABEL, 25000);
-    step('B 输同一个房间名后又能看到 A');
-
-    // 改回自动
-    a.once('dialog', (dialog) => dialog.accept(''));
-    await b.once('dialog', (dialog) => dialog.accept(''));
-    await a.click('#lobby-room');
-    await b.click('#lobby-room');
-    await a.waitForFunction(
-      () => document.getElementById('lobby-room').textContent.includes('自动'),
-      null,
-      { timeout: 10000 },
-    );
-    step('可以改回按出口 IP 自动');
-
     if (errors.length) throw new Error('页面报错:\n' + errors.join('\n'));
     console.log('\n同网发现验收通过');
   } finally {

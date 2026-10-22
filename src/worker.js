@@ -62,7 +62,7 @@ export default {
       )
         .split(',')[0]
         .trim();
-      const key = await subnetKey(request, env, url.searchParams.get('room'));
+      const key = await subnetKey(request, env);
       return json({ tag: key.slice(0, 8), family: ip.includes(':') ? 'IPv6' : 'IPv4' });
     }
 
@@ -146,35 +146,11 @@ function ipv6Prefix64(addr) {
 }
 
 /**
- * 大厅分组键：
- *  - 有房间名 → 按房间名分（跨双 WAN / 跨协议族都能用同一间）
- *  - 没有 → 按出口 IP 兜底（IPv4 精确、IPv6 /64）
- * 双 WAN 按连接分流时，出口 IPv4 会变来变去，IP 分组在那种网络里靠不住。
+ * 大厅分组键：按出口 IP（IPv4 精确、IPv6 /64），加盐哈希当 DO 名。
+ * 双 WAN 按连接分流时出口 IP 会变来变去，那种网络下自动发现不可靠，
+ * 用取件码/分享链接最稳。
  */
-const ROOM_MAX = 24;
-
-function normalizeRoom(value) {
-  const text = String(value || '')
-    .replace(/[\u0000-\u001f\u007f]/g, '')
-    .trim()
-    .slice(0, ROOM_MAX);
-  return text || '';
-}
-
-async function subnetKey(request, env, room) {
-  const name = normalizeRoom(room);
-
-  if (name) {
-    const digest = await crypto.subtle.digest(
-      'SHA-256',
-      new TextEncoder().encode(`${env.SUBNET_SALT || SUBNET_SALT}|${LOBBY_VERSION}|room:${name}`),
-    );
-    return [...new Uint8Array(digest)]
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('')
-      .slice(0, 32);
-  }
-
+async function subnetKey(request, env) {
   const raw = String(
     request.headers.get('cf-connecting-ip') ||
       request.headers.get('x-forwarded-for') ||
@@ -194,15 +170,14 @@ async function subnetKey(request, env, room) {
     .slice(0, 32);
 }
 
-async function lobbyOf(request, env, room) {
-  const key = await subnetKey(request, env, room);
+async function lobbyOf(request, env) {
+  const key = await subnetKey(request, env);
   return env.LOBBY.get(env.LOBBY.idFromName(key));
 }
 
 async function listLobby(request, env, url) {
   const exclude = (url.searchParams.get('exclude') || '').toUpperCase();
-  const room = url.searchParams.get('room') || '';
-  const stub = await lobbyOf(request, env, room);
+  const stub = await lobbyOf(request, env);
   const qs = exclude ? `?exclude=${encodeURIComponent(exclude)}` : '';
   const res = await stub.fetch(`https://lobby.internal/list${qs}`);
   if (!res.ok) return res;
@@ -215,7 +190,7 @@ async function listLobby(request, env, url) {
     platform: room.platform || '',
     age: Number(room.age) || 0,
   }));
-  return json({ rooms, tag: data.tag, room: normalizeRoom(url.searchParams.get('room')) });
+  return json({ rooms, tag: data.tag });
 }
 
 async function registerLobby(request, env) {
@@ -234,7 +209,7 @@ async function registerLobby(request, env) {
   const alive = await room.fetch('https://room.internal/exists');
   if (!alive.ok) return json({ error: 'no such room' }, 404);
 
-  const stub = await lobbyOf(request, env, body.room);
+  const stub = await lobbyOf(request, env);
   const name = String(body.name || body.device || '');
   return stub.fetch('https://lobby.internal/register', {
     method: 'POST',
@@ -255,7 +230,7 @@ async function hideLobby(request, env) {
   const code = String(body.code || '').toUpperCase();
   if (!CODE_RE.test(code)) return json({ error: 'bad code' }, 400);
 
-  const stub = await lobbyOf(request, env, body.room);
+  const stub = await lobbyOf(request, env);
   return stub.fetch('https://lobby.internal/hide', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -274,7 +249,7 @@ async function createInvite(request, env) {
   const id = String(body.id || '');
   if (!/^[2-9A-HJ-NP-Z]{8}$/.test(id)) return json({ error: 'bad id' }, 400);
 
-  const stub = await lobbyOf(request, env, body.room);
+  const stub = await lobbyOf(request, env);
   return stub.fetch('https://lobby.internal/invite', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -286,7 +261,7 @@ async function redeemInvite(request, env, url) {
   const token = url.pathname.slice('/api/invite/'.length).toUpperCase();
   if (!INVITE_RE.test(token)) return json({ error: 'bad invite' }, 400);
 
-  const stub = await lobbyOf(request, env, url.searchParams.get('room'));
+  const stub = await lobbyOf(request, env);
   const res = await stub.fetch(`https://lobby.internal/invite/${token}`);
   if (!res.ok) return res;
 

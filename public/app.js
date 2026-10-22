@@ -10,7 +10,6 @@ const JOIN_TIMEOUT = 8000;
 const APPROVE_TIMEOUT = 60000;
 const CONNECT_TIMEOUT = 30000;
 const DISCOVER_KEY = 'sixdrop.discover';
-const ROOM_KEY = 'sixdrop.room';
 
 // 国内可用的 STUN 放前面；带 AAAA 的放在后面专门探 IPv6
 // 手机流量下双方大概率都在 CGNAT 后面，IPv6 是唯一可能绕过去的路
@@ -253,36 +252,6 @@ function discoverOn() {
   }
 }
 
-/**
- * 「同一网络房间」：两台设备输同一个名字就按名字分组。
- * 双 WAN / 多出口 / 一台 IPv4 一台 IPv6 的网络里，按出口 IP 分组天然对不上，
- * 这时候靠一个双方约定的房间名最稳。
- */
-function roomName() {
-  try {
-    return String(localStorage.getItem(ROOM_KEY) || '')
-      .replace(/[\u0000-\u001f\u007f]/g, '')
-      .trim()
-      .slice(0, 24);
-  } catch {
-    return '';
-  }
-}
-
-function setRoomName(name) {
-  const clean = String(name || '')
-    .replace(/[\u0000-\u001f\u007f]/g, '')
-    .trim()
-    .slice(0, 24);
-  try {
-    if (clean) localStorage.setItem(ROOM_KEY, clean);
-    else localStorage.removeItem(ROOM_KEY);
-  } catch {
-    /* 忽略 */
-  }
-  return clean;
-}
-
 function setLobbyHint(text) {
   const el = $('lobby-hint');
   el.textContent = text || '';
@@ -296,9 +265,6 @@ function refreshDiscoverUI() {
   toggle.textContent = `同一网络可见：${on ? '开' : '关'}`;
   toggle.classList.toggle('on', on);
   $('self-name').textContent = deviceName();
-
-  const room = roomName();
-  $('lobby-room').textContent = room ? `同一网络房间：${room}` : '同一网络房间：自动';
 
   const hasPeers = s.lastRooms.length > 0;
   $('discover').hidden = !on;
@@ -323,12 +289,10 @@ function refreshDiscoverUI() {
         (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
       );
     const diag = s.diag
-      ? `当前网络组 <b>${esc(s.diag.tag)}</b> · ${esc(s.diag.family)}${room ? `（房间「${esc(room)}」）` : ''}。<br>`
+      ? `当前网络组 <b>${esc(s.diag.tag)}</b> · ${esc(s.diag.family)}。<br>`
       : '';
 
-    $('lobby-empty').innerHTML = room
-      ? `${diag}「${esc(room)}」里还没有其他设备。让对方也点「同一网络房间」输入同一个名字。`
-      : `${diag}同一网络里还没发现设备。两台设备的网络组一样才能互相发现；不一样就用上面的取件码或链接。<br>双 WAN 分流、手机用流量、一台 IPv4 一台 IPv6 都会让网络组不同。`;
+    $('lobby-empty').innerHTML = `${diag}同一网络里还没发现设备。两台设备的网络组一样才能互相发现；不一样就用上面的取件码或链接。<br>双 WAN 分流、手机用流量、一台 IPv4 一台 IPv6 都会让网络组不同。`;
     $('lobby-empty').hidden = false;
     $('lobby-actions').hidden = false;
     setLobbyHint('');
@@ -345,7 +309,7 @@ async function loadDiag() {
   if (s.diagLoading) return;
   s.diagLoading = true;
   try {
-    const res = await fetch(`/api/lobby/whoami?room=${encodeURIComponent(roomName())}`);
+    const res = await fetch('/api/lobby/whoami');
     if (res.ok) s.diag = await res.json();
   } catch {
     /* 诊断拿不到不影响列表 */
@@ -358,14 +322,12 @@ async function loadDiag() {
 /** 网络诊断：两台设备只有「网络组」一样才可能互相发现 */
 async function showNetworkDiag() {
   try {
-    const res = await fetch(`/api/lobby/whoami?room=${encodeURIComponent(roomName())}`);
+    const res = await fetch('/api/lobby/whoami');
     if (!res.ok) throw new Error('诊断接口不可用');
     const { tag, family } = await res.json();
     s.diag = { tag, family };
     setLobbyHint(
-      roomName()
-        ? `网络组 ${tag}（房间「${roomName()}」）。两台设备房间名一样就会是同一个组。`
-        : `网络组 ${tag} · ${family}。两台设备这个值必须一样；不一样就说明没走同一个出口 —— 点「同一网络房间」给两台起同一个名字最稳。`,
+      `网络组 ${tag} · ${family}。两台设备这个值必须一样；不一样就说明没走同一个出口（双 WAN 分流 / 手机流量 / 一台 IPv4 一台 IPv6），直接用上面的取件码或链接。`,
     );
   } catch (err) {
     setLobbyHint(err?.message || '诊断失败');
@@ -386,7 +348,6 @@ async function registerSelf() {
         code,
         name: deviceName(),
         platform: platformLabel(),
-        room: roomName(),
       }),
     });
   } catch {
@@ -394,7 +355,7 @@ async function registerSelf() {
   }
 }
 
-async function unregisterSelf(roomOverride) {
+async function unregisterSelf() {
   // 访客不能把房主的房间从列表里撤掉
   if (s.role !== 'sender') return;
   const code = s.code;
@@ -403,10 +364,7 @@ async function unregisterSelf(roomOverride) {
     await fetch('/api/lobby/hide', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        code,
-        room: roomOverride === undefined ? roomName() : roomOverride,
-      }),
+      body: JSON.stringify({ code }),
     });
   } catch {
     /* 忽略 */
@@ -434,10 +392,7 @@ async function refreshLobbyList() {
   }
 
   try {
-    const room = roomName();
-    const res = await fetch(
-      `/api/lobby?exclude=${encodeURIComponent(s.code)}&room=${encodeURIComponent(room)}`,
-    );
+    const res = await fetch(`/api/lobby?exclude=${encodeURIComponent(s.code)}`);
     if (!res.ok) return;
     const data = await res.json();
     renderLobbyList(data.rooms || []);
@@ -528,7 +483,7 @@ async function requestJoin(id, btn, age) {
     const res = await fetch('/api/lobby/invite', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id, room: roomName() }),
+      body: JSON.stringify({ id }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -2073,9 +2028,7 @@ function startReceive(code, { discover = false } = {}) {
   history.replaceState(null, '', location.pathname);
 
   try {
-    const res = await fetch(
-      `/api/invite/${encodeURIComponent(token)}?room=${encodeURIComponent(roomName())}`,
-    );
+    const res = await fetch(`/api/invite/${encodeURIComponent(token)}`);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(
@@ -2201,27 +2154,6 @@ $('discover-toggle').addEventListener('click', async () => {
   } else {
     await unregisterSelf();
   }
-});
-
-$('lobby-room').addEventListener('click', async () => {
-  const current = roomName();
-  const next = window.prompt(
-    '两台设备输同一个房间名就能互相发现（留空＝按出口 IP 自动）。\n双 WAN、两台走不同运营商、或一台 IPv4 一台 IPv6 时，用房间名最稳。',
-    current,
-  );
-  if (next === null) return;
-
-  const prev = current;
-  setRoomName(next);
-  s.diag = null; // 换房间就是换网络组，诊断要重新查
-  refreshDiscoverUI();
-
-  // 换房间 = 换大厅分组：先把旧的撤掉，再在新分组里登记
-  if (roomName() !== prev) await unregisterSelf(prev);
-  await registerSelf();
-  await refreshLobbyList();
-
-  toast(roomName() ? `已进入房间「${roomName()}」` : '已改回按出口 IP 自动');
 });
 
 $('lobby-refresh').addEventListener('click', async () => {

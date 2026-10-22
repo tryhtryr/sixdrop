@@ -69,7 +69,6 @@ await test('大厅里取件码和同网设备同时在场', async () => {
     'self-name',
     'rename',
     'discover-toggle',
-    'lobby-room',
     'lobby-hint',
     'discover',
     'lobby-list',
