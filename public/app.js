@@ -379,7 +379,10 @@ async function requestJoin(id, tile, meta) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ id }),
     });
-    if (!res.ok) throw new Error('这个房间已经不在了');
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error === 'host-left' ? '对方已经离开了' : '这个房间已经不在了');
+    }
 
     const { token } = await res.json();
     // 自己马上要离开大厅，先把自己那条撤掉，别留个进不去的房间

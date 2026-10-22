@@ -36,6 +36,7 @@ export class Room {
     const url = new URL(request.url);
     if (url.pathname === '/claim') return this.claim();
     if (url.pathname === '/exists') return this.exists();
+    if (url.pathname === '/alive') return this.alive();
     if (url.pathname === '/ws') return this.upgrade(request, url);
     return new Response('not found', { status: 404 });
   }
@@ -44,6 +45,14 @@ export class Room {
   async exists() {
     const createdAt = await this.ctx.storage.get('createdAt');
     return new Response(createdAt ? 'ok' : 'gone', { status: createdAt ? 200 : 404 });
+  }
+
+  /** 房主还在线吗：大厅里的条目会多活几分钟，点进来前先问一句 */
+  async alive() {
+    const online = this.ctx
+      .getWebSockets()
+      .some((ws) => ws.deserializeAttachment()?.role === 'sender');
+    return new Response(online ? 'ok' : 'gone', { status: online ? 200 : 410 });
   }
 
   async claim() {

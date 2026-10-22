@@ -172,6 +172,27 @@ await test('房里没房主时，同网发现进来的直接回绝', async () =>
   );
 });
 
+await test('大厅点进来前能问房主还在不在', async () => {
+  const { room } = await newRoom();
+
+  const empty = await room.fetch({ url: 'https://room.internal/alive', method: 'GET' });
+  assert.equal(empty.status, 410, '还没人连上时应该报 410');
+
+  const sender = await open(room, 'sender');
+  assert.equal(
+    (await room.fetch({ url: 'https://room.internal/alive', method: 'GET' })).status,
+    200,
+    '房主在线应该报 200',
+  );
+
+  sender.server.close();
+  assert.equal(
+    (await room.fetch({ url: 'https://room.internal/alive', method: 'GET' })).status,
+    410,
+    '房主走了就不该再让人申请',
+  );
+});
+
 await test('信令只转发给对方，且身份由服务端标注', async () => {
   const { room } = await newRoom();
   const sender = await open(room, 'sender');

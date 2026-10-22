@@ -214,11 +214,30 @@ async function createInvite(request, env) {
   if (!/^[2-9A-HJ-NP-Z]{8}$/.test(id)) return json({ error: 'bad id' }, 400);
 
   const stub = await lobbyOf(request, env);
-  return stub.fetch('https://lobby.internal/invite', {
+  const res = await stub.fetch('https://lobby.internal/invite', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ id }),
   });
+  if (!res.ok) return res;
+
+  // 大厅条目会多活几分钟；点进来之前先确认房主还在线
+  const { token, code } = await res.json();
+  const room = env.ROOMS.get(env.ROOMS.idFromName(code));
+  const alive = await room.fetch('https://room.internal/alive');
+  if (!alive.ok) {
+    // 顺手把这条已经没人的登记从大厅里撤掉
+    await stub
+      .fetch('https://lobby.internal/hide', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code }),
+      })
+      .catch(() => {});
+    return json({ error: 'host-left' }, 404);
+  }
+
+  return json({ token, expiresIn: 60 });
 }
 
 async function redeemInvite(request, env, url) {
