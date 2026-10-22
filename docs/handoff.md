@@ -11,9 +11,10 @@
 当前 HEAD：`fix(lobby): only advertise the room after the signalling socket is up` 之后的小提交
 （见 `git log`）。
 
-**线上已部署这一版**：2026-10-22，Version ID `36adc350-0598-43fe-b0a2-959dfba66475`，
+**线上已部署这一版**：2026-10-22，Version ID `2785c3a0-e957-4ac5-9462-f2b3391617d4`，
 `env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
 （e2e / chat-e2e / room-e2e / discover-e2e）。
+（这一版已按用户要求去掉「同一网络房间」，大厅只有「自动发现 + 取件码」两条路。）
 
 **注意**：本地 `main` 和 `origin/main` 已经分叉（远端还停在 slice2 那几次提交），
 本地这台机器的部署就是从本地目录 `wrangler deploy` 的，所以**线上对应当前本地工作树**。
