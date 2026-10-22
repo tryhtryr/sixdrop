@@ -11,7 +11,7 @@
 当前 HEAD：`fix(lobby): only advertise the room after the signalling socket is up` 之后的小提交
 （见 `git log`）。
 
-**线上已部署这一版**：2026-10-22，Version ID `f82fb0e8-4db6-4049-96cd-f61956c370d8`，
+**线上已部署这一版**：2026-10-22，Version ID `6d0a4e02-89e3-4bdd-80c9-17d41c3a916c`，
 `env.LOBBY (Lobby)` 绑定（wrangler migration v3）。线上回归 4 条全过
 （e2e / chat-e2e / room-e2e / discover-e2e）。
 
@@ -70,9 +70,14 @@
 
 ### 同网发现（阶段 3，已上线）
 
-- **分组键**：`CF-Connecting-IP` 的 IPv4 完整地址 / IPv6 的 `/64` 前缀，
-  加盐 SHA-256（再拼一个 `LOBBY_VERSION`）后当前大厅 DO 的名字（`src/worker.js` 的 `subnetKey()`）。
-  本地没有这个头，统一按 `dev` 分组 → 本机所有页面天然同网。
+- **两组键**：默认按出口 IP（IPv4 精确、IPv6 `/64`）；也可以按**房间名**
+  （大厅里点「同一网络房间」，两台输同一个名字）—— 双 WAN 按连接分流、桌面走另一条线、
+  一台 IPv4 一台 IPv6 这些情况下，IP 分组天生对不上，房间名是唯一稳的办法。
+  两种都用加盐 SHA-256 + `LOBBY_VERSION` 当大厅 DO 的名字（`src/worker.js` 的 `subnetKey()`）。
+  本地没有 `CF-Connecting-IP`，统一按 `dev` 分组 → 本机所有页面天然同网。
+- **房间名**：`localStorage['sixdrop.room']`，留空＝按 IP 自动；改名时先把旧分组里的登记
+  `hide` 掉再在新分组登记。room 随请求带给 Worker（`/api/lobby?room=`、
+  `register/hide/invite` 的 body、`/api/invite/<token>?room=`、`/api/lobby/whoami?room=`）。
 - **名字**：每台设备本地随机一个「形容词 + 动物」（`sixdrop.name`），可改名；
   平台（`Android · Edge` 这种）只做副标题，识别靠名字。**Android Edge 的 UA 是 `EdgA/`**，
   已经单独匹配（之前被识别成 Chrome）。
@@ -258,6 +263,7 @@ BASE_URL=https://sixdrop.dev node tools/discover-e2e.mjs
 | **Durable Object 不随 deploy 立刻换代码** | 已活着的 DO 实例会继续跑旧代码（这次给 Lobby 的 invite 响应加 `code` 就踩了：Worker 拿到 undefined，全被当成 ghost）。要么等它被驱逐，要么别让新代码依赖旧的 DO 响应字段。大厅的响应字段一改，就把 `src/worker.js` 里的 `LOBBY_VERSION` +1，等于换一批全新的 DO 实例 |
 | **大厅的字段契约由 Worker 兜住** | `listLobby()` 会把旧实例的 `device` 归一成 `name`，`register` 同时发 `name` 和 `device`；这样新旧 Lobby 实例混着跑也不会出现「未知设备」 |
 | **IPv4 / IPv6 是两个大厅** | 分组键按地址族分开：一台走 v4、一台走 v6 永远互相看不到（浏览器里没法强制协议族）。大厅的「网络诊断」显示网络组和地址族，两台对不上就用取件码 |
+| **双 WAN 的网络下 IP 分组不可靠** | 出口是 mwan3 按连接 48:52 分流的，同一台设备两次请求都可能落到不同运营商（实测同一台机器：`whoami` 一会 `IPv6 75771764`、一会 `IPv4 d957f1cf`）；桌面还接了另一条线时更是完全不同的出口。这种网络必须用「同一网络房间」按名字分组 |
 | **大厅条目要等 WS 连上才登记** | 否则别人点进来时 `/alive` 还查不到 sender，一拍就被当成 ghost 撤掉（生产上抓到过一次竞态） |
 | **`[hidden]` 靠 CSS** | `style.css` 里 `[hidden] { display: none !important }`，别用 `display` 覆盖它 |
 
