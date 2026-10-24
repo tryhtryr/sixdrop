@@ -18,7 +18,7 @@ if len(CODE) != 6:
 
 CHROME = "/usr/bin/chromium"
 PORT = 9222
-URL = "https://sixdrop.dev"
+URL = "https://sixdrop.example"
 
 proc = subprocess.Popen(
     [

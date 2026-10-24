@@ -14,7 +14,7 @@ import websocket
 MB = int(sys.argv[1]) if len(sys.argv) > 1 else 300
 CHROME = "/usr/bin/chromium"
 PORT = 9223
-URL = "https://sixdrop.dev"
+URL = "https://sixdrop.example"
 
 proc = subprocess.Popen(
     [
