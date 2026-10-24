@@ -27,6 +27,7 @@
   "workers_dev": true,
 
   // 自定义域名：zone 已激活，deploy 时会自动建 DNS 记录并签发证书
+  // ⚠️ 这两个是作者自己的域名。自己部署请换成你的，或把整段删掉（只保留 workers.dev）
   "routes": [
     { "pattern": "sixdrop.dev", "custom_domain": true },
     { "pattern": "www.sixdrop.dev", "custom_domain": true }
