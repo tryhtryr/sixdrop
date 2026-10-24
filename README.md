@@ -8,7 +8,7 @@
 
 No install. No account. Files never touch the server.
 
-[**GitHub**](https://github.com/tryhtryr/sixdrop) · [中文说明](README.zh.md)
+[**sixdrop.dev**](https://sixdrop.dev) · [GitHub](https://github.com/tryhtryr/sixdrop) · [中文说明](README.zh.md)
 
 </div>
 
@@ -54,30 +54,7 @@ Two people open the same web page. Each one immediately gets a 6-digit code; the
 | STUN | Public servers only — **no TURN**, deliberately |
 | Fallback storage | Cloudflare R2, presigned PUT/GET, lifecycle rule deletes after 24 h |
 
-There is no TURN server on purpose. Relaying media through a server costs money and defeats the point; when hole punching fails the app says so and offers the R2 path instead.
-
-## Self-hosting
-
-```bash
-git clone https://github.com/<you>/sixdrop.git
-cd sixdrop
-npm install
-npx wrangler deploy
-```
-
-`wrangler.jsonc` ships **without any domain**: `wrangler deploy` works out of the box and publishes to `https://sixdrop.<your-subdomain>.workers.dev`. To use your own domain, add a `routes` entry with `custom_domain: true` (or bind it from the Cloudflare dashboard) — `sitemap.xml`, `robots.txt`, canonical and `og:url` are generated from the request host, so no code changes are needed.
-Durable Objects are SQLite-backed and work on the free plan.
-
-To enable the R2 fallback, create a bucket and set four secrets:
-
-```bash
-wrangler secret put R2_ACCOUNT_ID
-wrangler secret put R2_BUCKET
-wrangler secret put R2_ACCESS_KEY_ID
-wrangler secret put R2_SECRET_ACCESS_KEY
-```
-
-Without them the app still works — the fallback button simply does not appear.
+There is no TURN server on purpose: relaying media through a server defeats the point of a peer-to-peer tool. When hole punching fails the app says so and offers the R2 path instead.
 
 ## Tests
 

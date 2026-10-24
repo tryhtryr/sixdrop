@@ -6,7 +6,7 @@
 
 一个跑在 Cloudflare Workers 上的浏览器点对点传文件站：
 
-**线上地址：<https://github.com/tryhtryr/sixdrop>**
+**线上地址：<https://sixdrop.dev>**
 
 - 打开页面就进大厅：上面是自己的 6 位取件码 + 输码框，下面是**同一网络里的设备**（设备图标 + 随机名字，比如「温柔的海狸」+ 平台），点「申请加入」、对方点「同意」就进同一个房间
 - 每台设备第一次会随机起一个名字，可以点「改名」；两台都是「Windows · Edge」时也分得清
@@ -17,10 +17,6 @@
 - **同一个房间能一直用**：码不变，文件传完还能再发一批，文本也走这条连接
 - 文件字节不经过 Cloudflare，服务器只负责交换 SDP 和候选
 - 不配置 TURN：打不通就明确告诉你「换网络 / 重试」，不会偷偷把文件传上云
-
-信令层在免费额度内（Workers Free + Durable Objects Free），成本为 0。
-
-域名：作者自己在一个私有域名上运行，仓库里**不包含任何域名**；fork 之后可以直接部署到你自己的 `workers.dev` 子域。
 
 ## 目录
 ```
@@ -35,53 +31,9 @@ test/              纯 Node 跑的单元测试（不需要 wrangler 账号）
 wrangler.jsonc
 ```
 
-## 部署
-
-需要 Node 18+ 和一个 Cloudflare 账号（免费版即可，不用绑卡）。
-
-```bash
-npm install
-npx wrangler login
-npm run deploy
-```
-
-第一次部署会创建 Durable Object 命名空间。部署完成后访问：
-
-```
-https://sixdrop.<你的子域>.workers.dev
-```
-
-本地调试有两个选择：
-
-```bash
-npm run dev        # wrangler dev，最接近线上，需要先 npm install
-npm run dev:local  # 零依赖垫片，用 Node 直接跑真实的 worker/room 代码
-```
-
-`dev:local` 走 `tools/dev-server.mjs`：它把 `Response`、`WebSocketPair`、Durable Object 的 `ctx` 用 Node 模拟出来，业务代码一份不改。适合没装 wrangler 时快速验证，**不要用来上线**。
-
-> WebRTC 需要安全上下文，`localhost` / `127.0.0.1` 和 `https://` 都可以；用局域网 IP 直接访问 `http://192.168.x.x` 时浏览器会禁用 DataChannel。
-
-## 绑定你自己的域名（可选）
-
-仓库里的 `wrangler.jsonc` **没有写任何域名**，所以 `wrangler deploy` 开箱即用，会部署到 `https://sixdrop.<你的子域>.workers.dev`。
-
-想绑自己的域名，两种方式都行：
-
-1. **控制台**：Workers → 你的 worker → Settings → Domains & Routes → Add custom domain（自动建 DNS 记录和证书）；
-2. **配置**：在 `wrangler.jsonc` 里加一段（自己维护的配置别提交，或提交前把域名换成占位符）：
-
-```jsonc
-"routes": [
-  { "pattern": "drop.example.com", "custom_domain": true }
-]
-```
-
-> `sitemap.xml`、`robots.txt` 和页面里的 canonical / og:url 都由 Worker 按**请求的域名**动态生成，所以换域名不用改代码，仓库里也不需要出现真实域名。
-
 ## 为什么没有 TURN
 
-Cloudflare Workers 没有 UDP 入站，没法自建 TURN；官方 Realtime TURN 是 $0.05/GB。这个项目默认**不中继**：
+Cloudflare Workers 没有 UDP 入站，没法自建 TURN；官方 TURN 按流量计费，而且流量要过一遍服务器。这个项目默认**不中继**：
 
 - 直连成功：速度只受双方上行限制，服务器零带宽成本
 - 直连失败（对称 NAT、公司/校园网、部分 4G/5G）：给失败页 + 诊断信息，并提供「重新尝试」
@@ -93,7 +45,7 @@ Cloudflare Workers 没有 UDP 入站，没法自建 TURN；官方 Realtime TURN 
 
 **这是可选的**。没配置 R2 凭据时，`/api/relay/status` 返回 `enabled: false`，失败页不会出现「改用中转」按钮。
 
-### 配额与限制（R2 官方）
+### 大小与期限
 
 | 项目 | 限制 |
 | --- | --- |
@@ -108,7 +60,7 @@ Cloudflare Workers 没有 UDP 入站，没法自建 TURN；官方 Realtime TURN 
 
 **1. 边传边下。** 每个文件传完立刻推一条 `relay-file`，接收方可以开始下第一个文件，同时后面的还在上传。
 
-**2. 分享页（对方关掉页面也能拿）。** 全部传完后自动生成 `https://github.com/tryhtryr/sixdrop/d/<10 位 token>`，24 小时有效：
+**2. 分享页（对方关掉页面也能拿）。** 全部传完后自动生成 `https://sixdrop.dev/d/<10 位 token>`，24 小时有效：
 
 - 不依赖房间，接收方什么时候打开都行
 - 页面会现签下载链接（1 小时有效），所以链接过期也能刷新重拿
@@ -126,50 +78,9 @@ Cloudflare Workers 没有 UDP 入站，没法自建 TURN；官方 Realtime TURN 
 - **接收后想提前删**：分享页/接收页有「已收到，立即删除」按钮，删对象 + 清清单，链接立即失效
 - **24 小时是硬上限**：`expire-1d` 规则保证不管有没有人点删除，文件最迟 24 小时消失
 
-### 开启步骤
-
-生产环境已经就绪的部分：
-
-- bucket：**`sixdrop-files-apac`**，区域 **APAC**，存储类 Standard
-- CORS：允许你自己的域名（含 `www`）的 PUT/GET/HEAD，暴露 `ETag`
-- 生命周期：**1 天**自动删除
-- Worker secret：`R2_ACCOUNT_ID`、`R2_BUCKET` 已写入
-
-还差 R2 的 S3 凭据（Access Key ID / Secret Access Key）。Cloudflare 没有公开创建 R2 API Token 的 API，只能在控制台建：
-
-1. R2 → **Manage R2 API Tokens** → Create API Token
-2. 权限 **Object Read & Write**，范围限定到 `sixdrop-files-apac`
-3. 记下 **Access Key ID** 和 **Secret Access Key**（只显示一次）
-
-```bash
-npx wrangler secret put R2_ACCESS_KEY_ID
-npx wrangler secret put R2_SECRET_ACCESS_KEY
-```
-
-四个 secret 齐了以后，`/api/relay/status` 会返回 `enabled: true`，失败页才会出现「改用中转」。
-
-> 建 bucket 时位置提示要选 `apac`。实测同名重建会一直落在 WNAM，换个名字才会生效——所以最终桶名是 `sixdrop-files-apac`。
-
-5. 给 bucket 加一条 1 天过期的生命周期规则，兜底清理。
-
-### 成本
-
-存储按 GB·月计，出网免费。1 TB/月、24 小时删除约 **$0.5**，对比 TURN 的 $50。
-
-## 免费额度能撑多少
-
-| 资源 | 免费额度 | 说明 |
-| --- | --- | --- |
-| Worker 请求 | 100,000/天 | 每次配对约 2 次 |
-| 静态资源 | 不计请求 | 页面、JS、CSS 命中静态资源 |
-| DO 请求 | 100,000/天 | 每次配对约 2 次 + 少量消息（WebSocket 消息按 20:1 折算） |
-| DO 时长 | 13,000 GB-s/天 | 用 Hibernation API，空闲房间不计费 |
-
-按「一次配对 ≈ 2 次 Worker + 2 次 DO 请求」估算，免费额度大约能支撑 **每天 3–4 万次配对**。真正容易先撞墙的是 DO 时长，所以信令在协商完成后就不再保持长连接活跃（房间由 30 分钟 alarm 回收）。
-
 ## 协议
 
-信令消息只有五种，服务端用白名单过滤，并强制标注 `from`（不信任客户端自称的身份）：
+信令消息全部走白名单，并强制标注 `from`（不信任客户端自称的身份）：，并强制标注 `from`（不信任客户端自称的身份）：
 
 | 消息 | 方向 | 作用 |
 | --- | --- | --- |
@@ -291,6 +202,3 @@ npm run test:r2
 node tools/render-logo.mjs
 ```
 
-## 成本
-
-信令 $0。文件传输 $0。域名可选（`workers.dev` 子域免费）。
