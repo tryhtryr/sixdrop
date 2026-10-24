@@ -605,7 +605,8 @@ function rowState(index, text, cls) {
 function rowProgress(index, done, total) {
   const li = s.rows?.[index];
   if (!li) return;
-  const pct = total > 0 ? Math.min(100, (done / total) * 100) : 0;
+  // 空文件（total=0）也算走完，直接给满格
+  const pct = total > 0 ? Math.min(100, (done / total) * 100) : 100;
   li.querySelector('.fl-bar i').style.width = `${pct.toFixed(1)}%`;
 }
 
@@ -1220,7 +1221,15 @@ function appendChat(body, mine) {
 }
 
 async function onFileEnd(index) {
+  const meta = s.current?.meta;
   await closeCurrent();
+
+  // 接收端也要把这一行收尾：补满进度 + 标「已完成」
+  // （之前只改了副标题，行里会一直停在「接收中」，进度条也不变绿）
+  const size = meta?.size ?? 0;
+  rowProgress(index, size, size);
+  rowState(index, '已完成', 'done');
+
   if (index >= s.count - 1) await finishReceive();
 }
 

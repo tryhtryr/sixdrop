@@ -199,6 +199,22 @@ async function main() {
 
     assert.match(await sender.locator('#xfer-sub').textContent(), /完成/);
 
+    // 接收端的每一行都要收尾：类名 done、状态「已完成」、进度条 100%
+    const rows = await receiver.evaluate(() =>
+      [...document.querySelectorAll('#file-list li')].map((li) => ({
+        done: li.classList.contains('done'),
+        state: li.querySelector('.fl-state')?.textContent?.trim() || '',
+        width: li.querySelector('.fl-bar i')?.style.width || '',
+      })),
+    );
+    assert.ok(rows.length >= FILES.length, `接收端文件行数不对: ${rows.length}`);
+    for (const [i, row] of rows.entries()) {
+      assert.ok(row.done, `第 ${i + 1} 行没有 done 类`);
+      assert.equal(row.state, '已完成', `第 ${i + 1} 行状态是「${row.state}」`);
+      assert.equal(Number.parseFloat(row.width), 100, `第 ${i + 1} 行进度条是 ${row.width}`);
+    }
+    step(`接收端 ${rows.length} 行全部收尾（已完成 + 满格）`);
+
     const v1 = (await sender.locator('#verify-code').textContent()).trim();
     const v2 = (await receiver.locator('#verify-code').textContent()).trim();
     assert.ok(v1.length >= 8, `发送端校验码异常: ${v1}`);
