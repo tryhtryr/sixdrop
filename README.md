@@ -65,7 +65,8 @@ npm install
 npx wrangler deploy
 ```
 
-`wrangler.jsonc` needs a domain or a `workers.dev` subdomain. Durable Objects are SQLite-backed and work on the free plan.
+`wrangler.jsonc` needs a domain or a `workers.dev` subdomain. **The committed `routes` point at the author's own domain (`sixdrop.dev`)**: replace the `pattern` with your domain, or delete `routes` and keep `workers_dev: true` — `wrangler deploy` fails if you leave it as-is.
+Durable Objects are SQLite-backed and work on the free plan.
 
 To enable the R2 fallback, create a bucket and set four secrets:
 

@@ -62,14 +62,15 @@ npm run dev:local  # 零依赖垫片，用 Node 直接跑真实的 worker/room �
 
 > WebRTC 需要安全上下文，`localhost` / `127.0.0.1` 和 `https://` 都可以；用局域网 IP 直接访问 `http://192.168.x.x` 时浏览器会禁用 DataChannel。
 
-## 绑定 sixdrop.dev
+## 绑定你自己的域名（可选）
 
-1. Cloudflare 控制台 → **Add a site** → 输入 `sixdrop.dev`，选 Free 计划
-2. 按提示去注册商后台，把 NS 改成 Cloudflare 给的那两个
-3. 等 zone 变成 **Active**（通常几分钟到几小时）
-4. 解开 `wrangler.jsonc` 末尾 `routes` 那一行的注释，再 `npm run deploy`
+`wrangler.jsonc` 末尾的 `routes` 里写的是**作者自己的域名**（`sixdrop.dev`）。你自己部署时请把它换成你的，或者删掉只留 `workers.dev`：
 
-`custom_domain: true` 会自动创建 DNS 记录并签发证书，不用手动加 CNAME。`workers.dev` 的子域会同时保留，两个地址都能访问。
+1. 在 Cloudflare 里加上你要用的域名（Add a site → 按提示改 NS → 等 zone 变 Active）；
+2. 把 `routes[].pattern` 改成你的域名（例如 `drop.example.com`），`custom_domain: true` 会自动建 DNS 记录并签发证书，不用手动加 CNAME；
+3. 不想绑域名就删掉 `routes`，保留 `workers_dev: true`，直接用 `https://sixdrop.<你的子域>.workers.dev`。
+
+> ⚠️ 不要照抄仓库里的 `sixdrop.dev`：那是作者已经注册并绑定的域名，你加不进去，也不该加。不改这一行，`wrangler deploy` 会直接失败。
 
 ## 为什么没有 TURN
 
