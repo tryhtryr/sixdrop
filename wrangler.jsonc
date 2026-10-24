@@ -5,7 +5,11 @@
   "compatibility_date": "2026-09-01",
   "assets": {
     "directory": "./public",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // 让 Worker 先跑：www/http 的 301、/about 和 /guide 的漂亮 URL 都在 Worker 里处理
+    "run_worker_first": true,
+    // 关掉 Assets 的自动 .html / 尾斜杠改写，避免和 Worker 的路由互相 307
+    "html_handling": "none"
   },
   "durable_objects": {
     "bindings": [

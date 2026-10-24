@@ -1,0 +1,34 @@
+:root{--bg:#0d0f12;--card:#16181d;--line:#262a32;--text:#e8eaed;--muted:#8b919c;--accent:#4f8cff}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1100px 560px at 50% -10%,#1a2030 0%,var(--bg) 55%);color:var(--text);
+font:16px/1.85 -apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;padding:44px 20px 90px}
+.wrap{max-width:780px;margin:0 auto}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:36px;font-size:15px;flex-wrap:wrap}
+.top a{color:var(--text);text-decoration:none;font-weight:600}
+.top a:hover{color:var(--accent)}
+.top .sep{color:#3a4a60}
+.top .cur{color:var(--muted)}
+h1{font-size:32px;line-height:1.4;margin:0 0 16px;letter-spacing:-.01em}
+h2{font-size:22px;margin:40px 0 12px;padding-top:6px}
+p,li{color:#d3d8e0}
+a{color:var(--accent)}
+.lead{font-size:17px;color:#b9c1cd}
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:15px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+code{background:#1d2026;border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:14px}
+.faq dt{font-weight:700;margin-top:20px}
+.faq dd{margin:6px 0 0;color:#c7cdd7}
+.rel{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-size:15px}
+.rel a{margin-right:14px}
+.foot{margin-top:56px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:14px;
+display:flex;gap:16px;flex-wrap:wrap}
+.foot a{color:var(--muted);text-decoration:none}
+.foot a:hover{color:var(--accent)}
+.cards{display:grid;gap:14px;margin-top:26px}
+.card{display:block;padding:18px 20px;border:1px solid var(--line);border-radius:14px;background:var(--card);
+text-decoration:none;color:inherit}
+.card:hover{border-color:#33507a}
+.card b{display:block;font-size:17px;margin-bottom:6px;color:#dfe8f5}
+.card span{color:var(--muted);font-size:14px;line-height:1.7}
+@media(max-width:560px){h1{font-size:26px}h2{font-size:19px}}

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>电脑传文件到手机，不装 App 也能传（iPhone / 安卓）</title>
+    <meta name="description" content="不用数据线、不用 iTunes、不装 App：在两个浏览器之间直接传。iPhone 和安卓分别写清楚保存位置、大小限制和失败怎么办。" />
+    <link rel="canonical" href="https://sixdrop.dev/guide/phone-to-pc" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="电脑传文件到手机，不装 App 也能传（iPhone / 安卓）" />
+    <meta property="og:description" content="不用数据线、不用 iTunes、不装 App：在两个浏览器之间直接传。iPhone 和安卓分别写清楚保存位置、大小限制和失败怎么办。" />
+    <meta property="og:url" content="https://sixdrop.dev/guide/phone-to-pc" />
+    <meta property="og:site_name" content="SixDrop" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="stylesheet" href="/guide/guide.css" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"电脑传文件到手机，不装 App 也能传（iPhone / 安卓）","description":"不用数据线、不用 iTunes、不装 App：在两个浏览器之间直接传。iPhone 和安卓分别写清楚保存位置、大小限制和失败怎么办。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"https://sixdrop.dev/guide/phone-to-pc","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"https://sixdrop.dev/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"https://sixdrop.dev/guide"},{"@type":"ListItem","position":3,"name":"电脑 ↔ 手机","item":"https://sixdrop.dev/guide/phone-to-pc"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"需要装 App 吗？","acceptedAnswer":{"@type":"Answer","text":"不需要。两边都是浏览器打开网页，电脑和手机都可以。"}},{"@type":"Question","name":"会压缩照片和视频吗？","acceptedAnswer":{"@type":"Answer","text":"不会。直连传输是原样转发字节，不转码、不压缩。"}},{"@type":"Question","name":"手机用流量能传吗？","acceptedAnswer":{"@type":"Answer","text":"可以，但手机流量通常是运营商 CGNAT，打洞成功率比同一个 Wi-Fi 低；能连上时速度也受移动网络影响。"}}]}]}</script>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <img src="/icon.svg" alt="SixDrop" width="34" height="34" />
+        <a href="/">SixDrop</a>
+        <span class="sep">/</span>
+        <a href="/guide">使用指南</a>
+        <span class="sep">/</span>
+        <span class="cur">电脑 ↔ 手机</span>
+      </div>
+      <main class="doc">
+      <h1>电脑传文件到手机，不装 App 也能传（iPhone / 安卓）</h1>
+      <p class="lead">把电脑上的一个文件挪到手机上，常见做法是插数据线、发微信文件传输助手、或者传网盘再下载。这三种都有各自的麻烦：线不一定在身边，微信会压缩图片视频且有大文件限制，网盘要先上传再等下载。</p>
+      <h2>最省事的做法：两个浏览器直接传</h2>
+<p>SixDrop 的做法是让两个浏览器建立一条点对点通道，文件从电脑直接流到手机，不经过中间服务器。两边都不需要安装任何东西，只要能打开网页。</p>
+<ol><li>电脑和手机都打开 &lt;a href="/"&gt;sixdrop.dev&lt;/a&gt;。</li><li>在同一个 Wi-Fi 下：电脑的大厅里会直接出现手机的设备，点「申请加入」，手机上点「同意」。</li><li>不在同一个网络：电脑上把 6 位取件码念给手机（或把链接发过去），手机在输入框里输码。</li><li>电脑上选文件，手机上确认保存位置，开始传。</li></ol>
+<h2>iPhone / iPad</h2>
+<p>Safari 会弹出保存位置选择：存到「文件」App 里的任意目录，或者直接选「照片」保存图片视频。传完之后在「文件」或「照片」里就能看到，不需要经过电脑同步。</p>
+<p>注意一点：Safari 是把文件先收进内存再落盘，所以单个文件建议不要超过 1 GB；更大的文件请用电脑接收，或者在 Chrome / Edge 上传。</p>
+<h2>安卓</h2>
+<p>Chrome / Edge 会弹出系统文件选择器，选一个目录即可；大文件是边收边写盘的，内存占用不会随文件变大。</p>
+<p>部分机型的「下载」目录会提示权限，选「允许」就行。文件管理器的「下载」里能找到。</p>
+<h2>为什么不用微信文件传输助手</h2>
+<p>微信对图片和视频会转码压缩，原图需要额外点「原图」；单个文件有大小上限；而且要先把文件发到服务器，再由另一台设备下载。</p>
+<p>点对点直传的好处是原样传输：照片还是原图，视频还是原视频，服务器只转发建立连接所需的信息，不碰文件内容。</p>
+<h2>传不过去怎么办</h2>
+<p>如果两边都在公司网、校园网或者部分移动网络里（对称 NAT），打洞可能失败。页面会直接告诉你失败，并给出候选统计和三条后续：换一个网络（手机热点通常最快）、用同一个取件码重连、或者主动选择「改用中转」。</p>
+<p>默认不会把文件偷偷传到云上——只有你点了「改用中转」，文件才会临时存到 R2，最多 24 小时自动删除。</p>
+<h2>常见故障对照</h2>
+<table><thead><tr><th>现象</th><th>更可能的原因</th><th>处理</th></tr></thead><tbody><tr><td>大厅里看不到对方设备</td><td>两台不在同一个出口（一台流量、一台 Wi-Fi，或双 WAN）</td><td>改用 6 位取件码</td></tr><tr><td>输码后一直「等待对方同意」</td><td>对方没点「同意」，或已经从大厅离开</td><td>让对方刷新页面重新申请</td></tr><tr><td>传到一半卡住</td><td>无线抖动、对方设备休眠</td><td>页面会等待并显示「等对方接住」，恢复后继续</td></tr><tr><td>保存失败</td><td>手机存储空间不足、或没有写入权限</td><td>换一个目录，或清理空间后重试</td></tr></tbody></table>
+<h2>传完之后在哪找</h2>
+<p>iPhone：如果你选了「存储到文件」，去「文件」App 的对应目录；如果选的是照片，直接进相册。安卓：一般在「文件管理 → 下载」里，具体取决于你选的目录。</p>
+<p>电脑接收时选的是哪个文件夹，文件就在哪里；浏览器不会另存一份隐藏副本。</p>
+<h2>为什么它比「发微信」省事</h2>
+<p>不需要加好友、不需要两台设备都装同一个 App、不需要先把文件传到服务器再等另一台下载。对于「现在就要把这张照片/这个安装包给对方」这种场景，少一步就少一分钟。</p>
+<p>代价是两边都要在线，而且网络必须允许点对点连接——这也是为什么失败页会把原因和后续写清楚。</p>
+      <h2>常见问题</h2>
+      <dl class="faq">
+        <dt>需要装 App 吗？</dt><dd>不需要。两边都是浏览器打开网页，电脑和手机都可以。</dd>
+<dt>会压缩照片和视频吗？</dt><dd>不会。直连传输是原样转发字节，不转码、不压缩。</dd>
+<dt>手机用流量能传吗？</dt><dd>可以，但手机流量通常是运营商 CGNAT，打洞成功率比同一个 Wi-Fi 低；能连上时速度也受移动网络影响。</dd>
+      </dl>
+      <div class="rel">
+        相关：<a href="/guide/lan-large-files">同一 Wi-Fi 传大文件</a><a href="/guide/no-cloud">不用网盘传文件</a>
+      </div></main>
+      <footer class="foot">
+        <a href="/">打开 SixDrop</a>
+        <a href="/about">关于与常见问题</a>
+        <a href="/guide">全部指南</a>
+        <span>更新于 2026-10-24</span>
+      </footer>
+    </div>
+  </body>
+</html>

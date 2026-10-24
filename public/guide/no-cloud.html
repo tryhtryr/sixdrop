@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>不用网盘、不被压缩的传文件方法</title>
+    <meta name="description" content="不想注册网盘、不想让微信压缩原图？用浏览器点对点直传：原文件直接到对方设备，服务器只转发连接信息。" />
+    <link rel="canonical" href="https://sixdrop.dev/guide/no-cloud" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="不用网盘、不被压缩的传文件方法" />
+    <meta property="og:description" content="不想注册网盘、不想让微信压缩原图？用浏览器点对点直传：原文件直接到对方设备，服务器只转发连接信息。" />
+    <meta property="og:url" content="https://sixdrop.dev/guide/no-cloud" />
+    <meta property="og:site_name" content="SixDrop" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="stylesheet" href="/guide/guide.css" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"不用网盘、不被压缩的传文件方法","description":"不想注册网盘、不想让微信压缩原图？用浏览器点对点直传：原文件直接到对方设备，服务器只转发连接信息。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"https://sixdrop.dev/guide/no-cloud","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"https://sixdrop.dev/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"https://sixdrop.dev/guide"},{"@type":"ListItem","position":3,"name":"不用网盘传文件","item":"https://sixdrop.dev/guide/no-cloud"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"文件会存在服务器上吗？","acceptedAnswer":{"@type":"Answer","text":"直连成功时不会；只有主动选择「改用中转」时才会临时存到 R2，最多 24 小时自动删除。"}},{"@type":"Question","name":"需要注册账号吗？","acceptedAnswer":{"@type":"Answer","text":"不需要，打开网页就能用。"}},{"@type":"Question","name":"别人能猜到我的取件码吗？","acceptedAnswer":{"@type":"Answer","text":"取件码是 6 位、32 字符表（去掉易混字符），只在房间存活期内有效；用完点「离开」会换新码。"}}]}]}</script>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <img src="/icon.svg" alt="SixDrop" width="34" height="34" />
+        <a href="/">SixDrop</a>
+        <span class="sep">/</span>
+        <a href="/guide">使用指南</a>
+        <span class="sep">/</span>
+        <span class="cur">不用网盘传文件</span>
+      </div>
+      <main class="doc">
+      <h1>不用网盘、不被压缩的传文件方法</h1>
+      <p class="lead">网盘的问题不是不好用，而是它多了一跳：文件要先完整上传，对方才能开始下载。而且免费账号常有下载限速、转存限制。对于「我就想现在把文件给对方」这种场景，这一跳是多余的。</p>
+      <h2>三种常见做法对比</h2>
+<table><thead><tr><th>方式</th><th>要不要注册</th><th>文件经过谁</th><th>适合</th></tr></thead><tbody><tr><td>网盘分享链接</td><td>要</td><td>网盘服务器（长期保存）</td><td>需要长期保存、多人下载</td></tr><tr><td>聊天工具发文件</td><td>要</td><td>聊天服务器（有大小/压缩限制）</td><td>小文件、顺手发</td></tr><tr><td>点对点直传</td><td>不要</td><td>不经过服务器（直连时）</td><td>现在就要传、原样传</td></tr></tbody></table>
+<h2>具体怎么传</h2>
+<ol><li>双方打开 &lt;a href="/"&gt;sixdrop.dev&lt;/a&gt;，不需要注册。</li><li>同一网络：点对方的设备；不同网络：把 6 位取件码发给对方。</li><li>选文件 → 对方确认保存位置 → 开始传。</li><li>传完可以继续发下一批，也可以切到「消息」说两句。</li></ol>
+<h2>原图、原视频是怎么保住的</h2>
+<p>直连时，文件字节从你的浏览器直接流到对方浏览器，中间没有转码服务。照片还是原图，视频还是原视频，压缩包还是原来的字节。</p>
+<p>这一点和聊天工具不同：后者为了省带宽和存储，通常会对图片视频重新编码。</p>
+<h2>什么时候还是该用网盘</h2>
+<p>需要给对方一个「过几天再下也行」的链接、需要多人同时下载、需要版本管理——这些是网盘的主场。SixDrop 是一个 1 对 1、双方在线的传输工具，不做长期存储。</p>
+<p>如果打不通（对称 NAT），可以选择「改用中转」：文件临时放到 R2，给对方一个下载链接，最多 24 小时自动删除。这是兜底，不是默认。</p>
+<h2>网盘为什么要限速</h2>
+<p>网盘的存储和带宽都是成本，免费用户的下载限速是把成本转成会员收入的手段。这不是技术问题，是商业模式。</p>
+<p>点对点传输没有这笔「存储 + 下载」的成本，所以也就不存在会员限速这一层——但速度上限由你和对方的网络决定，这一点不会变。</p>
+<h2>不压缩对哪些文件最重要</h2>
+<ul><li>照片：社交软件默认会重新编码，原图需要额外操作；直传是原文件。</li><li>视频：转码会损失码率和细节，尤其是素材和成片。</li><li>设计稿、安装包、数据集：任何「必须字节一致」的文件。</li></ul>
+<h2>跨网络时的真实体验</h2>
+<p>同一个城市、双方都是普通家用宽带，打洞成功率很高；一方在公司网或校园网，成功率会明显下降。失败时不要反复重试同一个网络——换一个出口（比如手机热点）往往一次就好。</p>
+<p>如果确实需要「发个链接让对方过几天再下」，那还是用网盘；工具各有边界。</p>
+<h2>对方不在线怎么办</h2>
+<p>点对点需要两边同时在房间里。如果对方现在不在，只能等他有空再连；要「先发过去、他什么时候看都行」，那本来就是网盘或中转的活。</p>
+<p>中转模式会生成一个下载链接，对方随时可以下，但文件会在服务器上停留最多 24 小时。</p>
+      <h2>常见问题</h2>
+      <dl class="faq">
+        <dt>文件会存在服务器上吗？</dt><dd>直连成功时不会；只有主动选择「改用中转」时才会临时存到 R2，最多 24 小时自动删除。</dd>
+<dt>需要注册账号吗？</dt><dd>不需要，打开网页就能用。</dd>
+<dt>别人能猜到我的取件码吗？</dt><dd>取件码是 6 位、32 字符表（去掉易混字符），只在房间存活期内有效；用完点「离开」会换新码。</dd>
+      </dl>
+      <div class="rel">
+        相关：<a href="/guide/phone-to-pc">电脑 ↔ 手机</a><a href="/guide/webrtc-p2p">WebRTC 原理与安全</a>
+      </div></main>
+      <footer class="foot">
+        <a href="/">打开 SixDrop</a>
+        <a href="/about">关于与常见问题</a>
+        <a href="/guide">全部指南</a>
+        <span>更新于 2026-10-24</span>
+      </footer>
+    </div>
+  </body>
+</html>

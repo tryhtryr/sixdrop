@@ -30,6 +30,13 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // 统一到 https://sixdrop.dev：www 和 http 都 301，避免重复 URL 分散抓取预算
+    // （本地 dev 的 host 不是六个 drop 的域名，不受影响）
+    const prodHost = url.hostname === 'sixdrop.dev' || url.hostname === 'www.sixdrop.dev';
+    if (prodHost && (url.hostname === 'www.sixdrop.dev' || url.protocol === 'http:')) {
+      return Response.redirect(new URL(url.pathname + url.search, 'https://sixdrop.dev').toString(), 301);
+    }
+
     if (url.pathname === '/api/room') {
       if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
       return createRoom(env);
@@ -80,9 +87,14 @@ export default {
       return getDrop(env, url);
     }
 
+    // 首页：Assets 关掉了自动 index 解析，这里显式指到 index.html
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      return env.ASSETS.fetch(new Request(new URL('/index.html', url.origin), request));
+    }
+
     if (url.pathname.startsWith('/d/')) {
-      // 用 '/' 而不是 '/index.html'：Assets 会把 /index.html 301 到 /，路径就丢了
-      const page = await env.ASSETS.fetch(new Request(new URL('/', url.origin), request));
+      // 用 '/index.html' 而不是 '/'
+      const page = await env.ASSETS.fetch(new Request(new URL('/index.html', url.origin), request));
       const out = new Response(page.body, page);
       // 分享页是一次性的，别让搜索引擎收录
       out.headers.set('x-robots-tag', 'noindex, nofollow');
@@ -92,6 +104,17 @@ export default {
     // 静态页面的好看 URL：/about → /about.html（避免 Assets 的目录重定向）
     if (url.pathname === '/about' || url.pathname === '/about/') {
       return env.ASSETS.fetch(new Request(new URL('/about.html', url.origin), request));
+    }
+
+    // 指南页：/guide → /guide/index.html；/guide/<slug> → /guide/<slug>.html
+    if (url.pathname === '/guide' || url.pathname === '/guide/') {
+      return env.ASSETS.fetch(new Request(new URL('/guide/index.html', url.origin), request));
+    }
+    if (url.pathname.startsWith('/guide/') && !url.pathname.endsWith('.html')) {
+      const slug = url.pathname.slice('/guide/'.length).replace(/\/+$/, '');
+      if (/^[a-z0-9-]{2,60}$/.test(slug)) {
+        return env.ASSETS.fetch(new Request(new URL(`/guide/${slug}.html`, url.origin), request));
+      }
     }
 
     // 其余全部交给静态资源（命中静态文件不计 Worker 请求，也不消耗额度）

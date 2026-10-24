@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>同一个 Wi-Fi 下传大文件：为什么点对点比网盘快</title>
+    <meta name="description" content="两台设备连同一个路由器时，文件可以走局域网直连，不占用宽带上行。讲清楚原理、实操步骤，以及为什么实际速度还是会有差异。" />
+    <link rel="canonical" href="https://sixdrop.dev/guide/lan-large-files" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="同一个 Wi-Fi 下传大文件：为什么点对点比网盘快" />
+    <meta property="og:description" content="两台设备连同一个路由器时，文件可以走局域网直连，不占用宽带上行。讲清楚原理、实操步骤，以及为什么实际速度还是会有差异。" />
+    <meta property="og:url" content="https://sixdrop.dev/guide/lan-large-files" />
+    <meta property="og:site_name" content="SixDrop" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="stylesheet" href="/guide/guide.css" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"同一个 Wi-Fi 下传大文件：为什么点对点比网盘快","description":"两台设备连同一个路由器时，文件可以走局域网直连，不占用宽带上行。讲清楚原理、实操步骤，以及为什么实际速度还是会有差异。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"https://sixdrop.dev/guide/lan-large-files","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"https://sixdrop.dev/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"https://sixdrop.dev/guide"},{"@type":"ListItem","position":3,"name":"同一 Wi-Fi 传大文件","item":"https://sixdrop.dev/guide/lan-large-files"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"为什么不走网盘的上传？","acceptedAnswer":{"@type":"Answer","text":"网盘必须先把文件完整上传到服务器，对方才能下载；局域网直连是两台设备之间直接传，省掉了上传这一步。"}},{"@type":"Question","name":"千兆网线会比 Wi-Fi 快吗？","acceptedAnswer":{"@type":"Answer","text":"通常会。有线少了无线重传和信号衰减，速度更稳定。"}},{"@type":"Question","name":"支持断点续传吗？","acceptedAnswer":{"@type":"Answer","text":"不支持。传输中断需要重传；传完之后可以在同一个房间里再发。"}}]}]}</script>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <img src="/icon.svg" alt="SixDrop" width="34" height="34" />
+        <a href="/">SixDrop</a>
+        <span class="sep">/</span>
+        <a href="/guide">使用指南</a>
+        <span class="sep">/</span>
+        <span class="cur">同一 Wi-Fi 传大文件</span>
+      </div>
+      <main class="doc">
+      <h1>同一个 Wi-Fi 下传大文件：为什么点对点比网盘快</h1>
+      <p class="lead">两台设备连在同一个 Wi-Fi 下时，数据其实不需要出家门：路由器就能把包转给另一台设备。点对点传输会优先走这条「局域网直连」，这是它和网盘最本质的区别。</p>
+      <h2>局域网直连为什么快</h2>
+<p>网盘的速度受限于你的上行带宽：100 Mbps 宽带的上行往往只有 20–30 Mbps，2 GB 文件光上传就要十几分钟。局域网直连走的是 Wi-Fi 或网线本身，不经过运营商，也不占用上行。</p>
+<p>当然，这不是「无限快」：实际速度取决于 Wi-Fi 频段、信号强度、两台设备的网卡和磁盘。5 GHz 通常明显好于 2.4 GHz；机械硬盘写入和手机存储也会成为瓶颈。</p>
+<h2>操作步骤</h2>
+<p>传完房间还在：可以再发一批，也可以切到「消息」发文字，不用重新建连接。</p>
+<ol><li>确认两台设备连的是<strong>同一个</strong>路由器（不是「同名但不同频段的两套 SSID」，也不是手机热点）。</li><li>都打开 &lt;a href="/"&gt;sixdrop.dev&lt;/a&gt;，大厅里会列出对方的设备。</li><li>点对方设备 → 对方点「同意」→ 进入同一个房间。</li><li>发送方选文件（可多选），接收方选保存位置，开始传。</li></ol>
+<h2>大文件的三个实际限制</h2>
+<table><thead><tr><th>限制</th><th>说明</th></tr></thead><tbody><tr><td>接收端写盘方式</td><td>Chrome / Edge 可以边收边写；Firefox / Safari 先收进内存，单文件建议 &lt; 1 GB</td></tr><tr><td>接收方磁盘空间</td><td>直连没有硬性大小上限，但要留得下文件</td></tr><tr><td>无线稳定性</td><td>Wi-Fi 信号差时会出现重传，速度下降甚至卡住；页面会等对方接住，不会直接判失败</td></tr></tbody></table>
+<h2>看不到对方设备？</h2>
+<p>常见原因是两台设备其实不在同一个出口：比如一台走 Wi-Fi、一台走手机流量，或者路由器是双 WAN 分流。大厅里会显示「网络组」，两台对不上就说明出口不同——这时候用 6 位取件码最稳。</p>
+<p>另外，如果路由器开了「AP 隔离 / 客户端隔离」，设备之间互相看不见，也会影响局域网候选；关掉它或者用取件码走公网打洞。</p>
+<h2>怎么确认走的是局域网</h2>
+<p>传完之后，校验码下方会标出这次走的路径：<code>局域网直连</code> 表示两台设备直接通过路由器通信；<code>公网打洞</code> 表示走了 STUN 打洞；<code>中继</code> 表示经服务器。后面还会标 <code>IPv4</code> / <code>IPv6</code>。</p>
+<p>看到「局域网直连」就说明没有占用宽带上行，速度上限基本是 Wi-Fi 或网线的能力。</p>
+<h2>影响速度的几个具体因素</h2>
+<ul><li>频段：5 GHz 通常明显快于 2.4 GHz，但穿墙差；隔一堵墙可能反而不如 2.4 GHz 稳。</li><li>设备网卡：老手机的 Wi-Fi 模块可能只有 72–150 Mbps 的理论速率。</li><li>磁盘：机械硬盘写入大文件时，速度会掉到 100 MB/s 以下；手机存储也分 UFS 和 eMMC。</li><li>接收端写盘方式：Firefox / Safari 先收进内存，文件大了会明显变慢甚至失败。</li></ul>
+<h2>一次传多个文件</h2>
+<p>可以直接多选，接收端会自动逐个保存；文件数量多时，建议先打包成一个压缩包再传——几百个小文件的握手和确认开销，会比一个大文件高不少。</p>
+<h2>和其他近场方案比</h2>
+<ul><li>AirDrop：只在苹果设备之间，跨到 Windows 就不行。</li><li>安卓「附近共享」：安卓之间方便，跨系统同样不行。</li><li>数据线：稳定，但要线、要驱动，手机连电脑还要选传输模式。</li><li>浏览器直传：只要两边都有浏览器，Windows / macOS / 安卓 / iOS 可以互传，代价是要两台都在线。</li></ul>
+      <h2>常见问题</h2>
+      <dl class="faq">
+        <dt>为什么不走网盘的上传？</dt><dd>网盘必须先把文件完整上传到服务器，对方才能下载；局域网直连是两台设备之间直接传，省掉了上传这一步。</dd>
+<dt>千兆网线会比 Wi-Fi 快吗？</dt><dd>通常会。有线少了无线重传和信号衰减，速度更稳定。</dd>
+<dt>支持断点续传吗？</dt><dd>不支持。传输中断需要重传；传完之后可以在同一个房间里再发。</dd>
+      </dl>
+      <div class="rel">
+        相关：<a href="/guide/phone-to-pc">电脑 ↔ 手机</a><a href="/guide/symmetric-nat">对称 NAT 打不开</a>
+      </div></main>
+      <footer class="foot">
+        <a href="/">打开 SixDrop</a>
+        <a href="/about">关于与常见问题</a>
+        <a href="/guide">全部指南</a>
+        <span>更新于 2026-10-24</span>
+      </footer>
+    </div>
+  </body>
+</html>

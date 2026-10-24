@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WebRTC 点对点传文件的原理与安全边界</title>
+    <meta name="description" content="SDP、ICE、STUN、DTLS 各是什么？为什么有的网络打不通？服务器能看到文件吗？把点对点传文件的原理和安全边界讲清楚。" />
+    <link rel="canonical" href="https://sixdrop.dev/guide/webrtc-p2p" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="WebRTC 点对点传文件的原理与安全边界" />
+    <meta property="og:description" content="SDP、ICE、STUN、DTLS 各是什么？为什么有的网络打不通？服务器能看到文件吗？把点对点传文件的原理和安全边界讲清楚。" />
+    <meta property="og:url" content="https://sixdrop.dev/guide/webrtc-p2p" />
+    <meta property="og:site_name" content="SixDrop" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="stylesheet" href="/guide/guide.css" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"WebRTC 点对点传文件的原理与安全边界","description":"SDP、ICE、STUN、DTLS 各是什么？为什么有的网络打不通？服务器能看到文件吗？把点对点传文件的原理和安全边界讲清楚。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"https://sixdrop.dev/guide/webrtc-p2p","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"https://sixdrop.dev/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"https://sixdrop.dev/guide"},{"@type":"ListItem","position":3,"name":"WebRTC 原理与安全","item":"https://sixdrop.dev/guide/webrtc-p2p"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"为什么不做 TURN 中转加速？","acceptedAnswer":{"@type":"Answer","text":"TURN 会让所有流量过服务器，成本和隐私代价都高，而且用户会误以为自己在直连。这里选择「打不通就明说」，把中转做成一个显式选项。"}},{"@type":"Question","name":"校验码是文件哈希吗？","acceptedAnswer":{"@type":"Answer","text":"不是，是连接证书的指纹哈希，用来确认没有中间人。文件完整性由 DTLS 保证。"}},{"@type":"Question","name":"公司网完全不能用吗？","acceptedAnswer":{"@type":"Answer","text":"直连大概率不行；可以换手机热点重试，或者使用中转。"}}]}]}</script>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <img src="/icon.svg" alt="SixDrop" width="34" height="34" />
+        <a href="/">SixDrop</a>
+        <span class="sep">/</span>
+        <a href="/guide">使用指南</a>
+        <span class="sep">/</span>
+        <span class="cur">WebRTC 原理与安全</span>
+      </div>
+      <main class="doc">
+      <h1>WebRTC 点对点传文件的原理与安全边界</h1>
+      <p class="lead">「点对点」不是玄学，它是浏览器内置的 WebRTC 能力：先交换连接信息，再做 NAT 穿透，最后在两端之间建一条加密的数据通道。</p>
+      <h2>三步建立连接</h2>
+<ol><li><strong>信令</strong>：双方通过一个房间服务交换 SDP（媒体/数据能力描述）和 ICE 候选（我可能能被哪些地址找到）。这一步不含文件内容。</li><li><strong>打洞</strong>：双方用 STUN 服务器知道自己对外的地址，然后同时向对方发包，让两边的 NAT 各开一个口子。</li><li><strong>加密</strong>：通道建立后由 DTLS 加密，两端会显示同一个 8 位校验码（双方证书指纹的哈希），对一下就知道没有中间人。</li></ol>
+<h2>为什么有的网络打不通</h2>
+<p>NAT 分几种。锥形 NAT 允许「先出后进」，打洞容易；对称 NAT 会给每个目标分配不同的端口，打洞基本失败——公司网、校园网、部分 4G/5G 常见这种。</p>
+<p>还有一种情况：一方只有 IPv4、一方只有 IPv6，两个地址族之间无法直接配对，也会失败。</p>
+<h2>服务器能看到文件吗</h2>
+<p>直连时不能。服务器只转发 SDP/ICE 这类连接信息，数据面走的是两端之间的加密通道。</p>
+<p>只有你主动点「改用中转」时，文件才会上传到 R2 再由对方下载；这条路径经过服务器，所以会明确提示，并支持传完立即删除。</p>
+<h2>安全边界要说清楚</h2>
+<ul><li>通道是 DTLS 加密的，8 位校验码用于确认两端看到的证书一致，防中间人。</li><li>取件码是进入房间的凭据：知道码的人可以进入房间。请只发给要传文件的人，传完点「离开」换新码。</li><li>不建立账号、不保存传输历史；关掉页面，房间就结束。</li></ul>
+<h2>三种候选类型</h2>
+<table><thead><tr><th>类型</th><th>含义</th><th>跨网络可用吗</th></tr></thead><tbody><tr><td>host</td><td>本机网卡地址（局域网）</td><td>基本不可用，浏览器还会用 mDNS 隐藏它</td></tr><tr><td>srflx</td><td>通过 STUN 拿到的公网映射</td><td>可用，是打洞的主力</td></tr><tr><td>relay</td><td>TURN 中继</td><td>可用，但所有流量过服务器</td></tr></tbody></table>
+<h2>一次连接的消息序列</h2>
+<p>发送方创建 offer（含 SDP）→ 接收方回 answer → 双方各自把收集到的 ICE 候选逐个发过去 → 双方用这些候选做连通性检查 → 选中的那一对开始传数据。</p>
+<p>这些消息都走房间的 WebSocket，只有文本，不含文件内容。</p>
+<h2>为什么 8 位校验码够用</h2>
+<p>它不是用来防暴力破解的密码，而是让人眼比对两端看到的是不是同一对证书。中间人要让两端显示同一个码，需要同时伪造两边的指纹，这在 DTLS 握手中做不到。</p>
+<p>真正的加密由 DTLS 完成；校验码只是一个可核对的「指纹摘要」。</p>
+<h2>和「上传下载」有什么不同</h2>
+<p>HTTP 上传是先把文件完整写到服务器，对方再去下载：好处是离线可用、可以续传、可以长期保存；坏处是上传那一步必须先完成，而且文件一定会落在别人的磁盘上。</p>
+<p>点对点是两端同时在线、直接对流：少一次落盘、少一段等待，但要求双方在线，且网络允许直连。两种方式不是替代关系，是不同场景。</p>
+      <h2>常见问题</h2>
+      <dl class="faq">
+        <dt>为什么不做 TURN 中转加速？</dt><dd>TURN 会让所有流量过服务器，成本和隐私代价都高，而且用户会误以为自己在直连。这里选择「打不通就明说」，把中转做成一个显式选项。</dd>
+<dt>校验码是文件哈希吗？</dt><dd>不是，是连接证书的指纹哈希，用来确认没有中间人。文件完整性由 DTLS 保证。</dd>
+<dt>公司网完全不能用吗？</dt><dd>直连大概率不行；可以换手机热点重试，或者使用中转。</dd>
+      </dl>
+      <div class="rel">
+        相关：<a href="/guide/symmetric-nat">对称 NAT 打不开</a><a href="/guide/no-cloud">不用网盘传文件</a>
+      </div></main>
+      <footer class="foot">
+        <a href="/">打开 SixDrop</a>
+        <a href="/about">关于与常见问题</a>
+        <a href="/guide">全部指南</a>
+        <span>更新于 2026-10-24</span>
+      </footer>
+    </div>
+  </body>
+</html>

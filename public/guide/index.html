@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SixDrop 使用指南：点对点传文件的场景与排障</title>
+    <meta name="description" content="传文件的五个常见场景：电脑传手机、同一 Wi-Fi 传大文件、不用网盘、WebRTC 原理与安全边界、对称 NAT 打不开怎么办。" />
+    <link rel="canonical" href="https://sixdrop.dev/guide" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="SixDrop 使用指南：点对点传文件的场景与排障" />
+    <meta property="og:description" content="传文件的五个常见场景：电脑传手机、同一 Wi-Fi 传大文件、不用网盘、WebRTC 原理与安全边界、对称 NAT 打不开怎么办。" />
+    <meta property="og:url" content="https://sixdrop.dev/guide" />
+    <meta property="og:site_name" content="SixDrop" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="stylesheet" href="/guide/guide.css" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"CollectionPage","name":"SixDrop 使用指南","inLanguage":"zh-CN","hasPart":[{"@type":"Article","headline":"电脑传文件到手机，不装 App 也能传（iPhone / 安卓）","url":"https://sixdrop.dev/guide/phone-to-pc"},{"@type":"Article","headline":"同一个 Wi-Fi 下传大文件：为什么点对点比网盘快","url":"https://sixdrop.dev/guide/lan-large-files"},{"@type":"Article","headline":"不用网盘、不被压缩的传文件方法","url":"https://sixdrop.dev/guide/no-cloud"},{"@type":"Article","headline":"WebRTC 点对点传文件的原理与安全边界","url":"https://sixdrop.dev/guide/webrtc-p2p"},{"@type":"Article","headline":"公司网、校园网、对称 NAT 传不了文件怎么办","url":"https://sixdrop.dev/guide/symmetric-nat"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"https://sixdrop.dev/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"https://sixdrop.dev/guide"}]}]}</script>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <img src="/icon.svg" alt="SixDrop" width="34" height="34" />
+        <a href="/">SixDrop</a>
+        <span class="sep">/</span>
+        <a href="/guide">使用指南</a>
+        <span class="sep">/</span>
+        <span class="cur">全部指南</span>
+      </div>
+      <main class="doc">
+      <h1>SixDrop 使用指南</h1>
+      <p class="lead">按场景整理：从电脑传手机、同一 Wi-Fi 传大文件、不想用网盘，到打不开时怎么排查。</p>
+      <div class="cards">
+        <a class="card" href="/guide/phone-to-pc"><b>电脑传文件到手机，不装 App 也能传（iPhone / 安卓）</b><span>不用数据线、不用 iTunes、不装 App：在两个浏览器之间直接传。iPhone 和安卓分别写清楚保存位置、大小限制和失败怎么办。</span></a>
+<a class="card" href="/guide/lan-large-files"><b>同一个 Wi-Fi 下传大文件：为什么点对点比网盘快</b><span>两台设备连同一个路由器时，文件可以走局域网直连，不占用宽带上行。讲清楚原理、实操步骤，以及为什么实际速度还是会有差异。</span></a>
+<a class="card" href="/guide/no-cloud"><b>不用网盘、不被压缩的传文件方法</b><span>不想注册网盘、不想让微信压缩原图？用浏览器点对点直传：原文件直接到对方设备，服务器只转发连接信息。</span></a>
+<a class="card" href="/guide/webrtc-p2p"><b>WebRTC 点对点传文件的原理与安全边界</b><span>SDP、ICE、STUN、DTLS 各是什么？为什么有的网络打不通？服务器能看到文件吗？把点对点传文件的原理和安全边界讲清楚。</span></a>
+<a class="card" href="/guide/symmetric-nat"><b>公司网、校园网、对称 NAT 传不了文件怎么办</b><span>打洞失败不是工具坏了，是 NAT 类型的问题。教你看懂失败页的候选统计，并按顺序尝试换网络、重连、中转三条路。</span></a>
+      </div></main>
+      <footer class="foot">
+        <a href="/">打开 SixDrop</a>
+        <a href="/about">关于与常见问题</a>
+        <a href="/guide">全部指南</a>
+        <span>更新于 2026-10-24</span>
+      </footer>
+    </div>
+  </body>
+</html>

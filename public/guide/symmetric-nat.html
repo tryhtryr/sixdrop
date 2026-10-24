@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>公司网、校园网、对称 NAT 传不了文件怎么办</title>
+    <meta name="description" content="打洞失败不是工具坏了，是 NAT 类型的问题。教你看懂失败页的候选统计，并按顺序尝试换网络、重连、中转三条路。" />
+    <link rel="canonical" href="https://sixdrop.dev/guide/symmetric-nat" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="article" />
+    <meta property="og:title" content="公司网、校园网、对称 NAT 传不了文件怎么办" />
+    <meta property="og:description" content="打洞失败不是工具坏了，是 NAT 类型的问题。教你看懂失败页的候选统计，并按顺序尝试换网络、重连、中转三条路。" />
+    <meta property="og:url" content="https://sixdrop.dev/guide/symmetric-nat" />
+    <meta property="og:site_name" content="SixDrop" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="stylesheet" href="/guide/guide.css" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"公司网、校园网、对称 NAT 传不了文件怎么办","description":"打洞失败不是工具坏了，是 NAT 类型的问题。教你看懂失败页的候选统计，并按顺序尝试换网络、重连、中转三条路。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"https://sixdrop.dev/guide/symmetric-nat","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"https://sixdrop.dev/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"https://sixdrop.dev/guide"},{"@type":"ListItem","position":3,"name":"对称 NAT 打不开","item":"https://sixdrop.dev/guide/symmetric-nat"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"手机热点能解决吗？","acceptedAnswer":{"@type":"Answer","text":"大多数情况下能。热点相当于换了一个 NAT，双方都在运营商 CGNAT 时仍有失败可能。"}},{"@type":"Question","name":"开了 VPN 会怎样？","acceptedAnswer":{"@type":"Answer","text":"常见结果是所有候选都走 VPN 出口，打洞失败或绕远；先关掉再试。"}},{"@type":"Question","name":"中转的文件安全吗？","acceptedAnswer":{"@type":"Answer","text":"只在你主动选择时上传，最多 24 小时自动删除，也可以立即手动删除。"}}]}]}</script>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <img src="/icon.svg" alt="SixDrop" width="34" height="34" />
+        <a href="/">SixDrop</a>
+        <span class="sep">/</span>
+        <a href="/guide">使用指南</a>
+        <span class="sep">/</span>
+        <span class="cur">对称 NAT 打不开</span>
+      </div>
+      <main class="doc">
+      <h1>公司网、校园网、对称 NAT 传不了文件怎么办</h1>
+      <p class="lead">在公司、学校或者部分移动网络里，点对点传输经常失败。原因通常不是浏览器或网站，而是网络本身不允许「陌生地址主动打进来」。</p>
+      <h2>怎么判断是不是对称 NAT</h2>
+<p>失败页会给出候选统计，例如 <code>host 2 / srflx 4 / relay 0</code>：host 是本机地址，srflx 是通过 STUN 拿到的公网映射，relay 是中继。</p>
+<p>如果 srflx 有值但连通性检查全失败，基本就是对称 NAT 或防火墙拦截；如果 srflx 都是 0，说明 STUN 都没出去，网络限制更严格。</p>
+<h2>三条路，按顺序试</h2>
+<table><thead><tr><th>顺序</th><th>做法</th><th>说明</th></tr></thead><tbody><tr><td>1</td><td>换网络</td><td>手机热点通常最快：换一个出口，NAT 类型往往就变了</td></tr><tr><td>2</td><td>用同一个码重连</td><td>点「重新尝试」，房间和已选文件都还在，不用重新发码</td></tr><tr><td>3</td><td>改用中转</td><td>打不通时的兜底：文件经服务器转一趟，能传但更慢更费流量，传完可删</td></tr></tbody></table>
+<h2>预防：先确认环境</h2>
+<ul><li>关掉 VPN / 代理再试，它们会改写路由，干扰打洞。</li><li>双方尽量连同一个 Wi-Fi；手机热点是很好的验证手段。</li><li>如果一方在海外，双方都被 NAT 挡住时，优先考虑中转。</li></ul>
+<h2>为什么不做「自动中转」</h2>
+<p>自动中转会在用户不知情的情况下把文件传到服务器，这既影响隐私预期，也让「直连」这件事失去意义。所以这里选择：打不通就明确失败，把选择权交给用户。</p>
+<h2>一分钟判断是不是网络的问题</h2>
+<p>用手机开热点，把其中一台设备切到热点上，再试一次。如果立刻能通，说明原来的网络就是对称 NAT 或防火墙限制；如果还是不行，问题可能在设备或浏览器（比如装了会拦截 WebRTC 的扩展）。</p>
+<h2>企业网常见的额外限制</h2>
+<ul><li>防火墙只放行 80/443，UDP 高端口被拦，STUN 直接失败。</li><li>HTTP 代理强制所有流量走代理，打洞无从谈起。</li><li>深度包检测识别 WebRTC 流量并阻断。</li><li>终端安全软件禁用浏览器的 WebRTC 组件。</li></ul>
+<h2>用中转的步骤与善后</h2>
+<p>失败页点「改用中转」→ 文件上传到 Cloudflare R2 → 得到一个下载链接，发给对方 → 对方下载。</p>
+<p>中转文件最多保留 24 小时；传完可以在页面上点删除，立即移除服务器上的副本。</p>
+<h2>为什么手机热点常常能通</h2>
+<p>热点相当于换了一个出口：原来公司网把你藏在对称 NAT 后面，热点通常给你一个运营商侧的锥形 NAT（或可用的 CGNAT），打洞就有机会成功。</p>
+<p>但热点不是万能：如果双方都在运营商 CGNAT 后面，仍然可能失败。这时候就别跟网络较劲了，用中转更省时间。</p>
+      <h2>常见问题</h2>
+      <dl class="faq">
+        <dt>手机热点能解决吗？</dt><dd>大多数情况下能。热点相当于换了一个 NAT，双方都在运营商 CGNAT 时仍有失败可能。</dd>
+<dt>开了 VPN 会怎样？</dt><dd>常见结果是所有候选都走 VPN 出口，打洞失败或绕远；先关掉再试。</dd>
+<dt>中转的文件安全吗？</dt><dd>只在你主动选择时上传，最多 24 小时自动删除，也可以立即手动删除。</dd>
+      </dl>
+      <div class="rel">
+        相关：<a href="/guide/webrtc-p2p">WebRTC 原理与安全</a><a href="/guide/lan-large-files">同一 Wi-Fi 传大文件</a>
+      </div></main>
+      <footer class="foot">
+        <a href="/">打开 SixDrop</a>
+        <a href="/about">关于与常见问题</a>
+        <a href="/guide">全部指南</a>
+        <span>更新于 2026-10-24</span>
+      </footer>
+    </div>
+  </body>
+</html>
