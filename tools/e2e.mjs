@@ -214,6 +214,10 @@ async function main() {
       assert.equal(Number.parseFloat(row.width), 100, `第 ${i + 1} 行进度条是 ${row.width}`);
     }
     step(`接收端 ${rows.length} 行全部收尾（已完成 + 满格）`);
+    assert.ok(
+      await receiver.evaluate(() => document.querySelector('.bar')?.classList.contains('done')),
+      '主进度条没有收尾（.bar 缺 done 类）',
+    );
 
     const v1 = (await sender.locator('#verify-code').textContent()).trim();
     const v2 = (await receiver.locator('#verify-code').textContent()).trim();

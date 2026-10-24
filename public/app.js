@@ -1351,6 +1351,7 @@ async function beginSending() {
     s.done = true;
     s.batchDone = true;
     $('xfer-sub').textContent = s.files.length > 1 ? '全部发送完成' : '发送完成';
+    document.querySelector('.bar')?.classList.add('done');
     $('back').hidden = false;
     stopKeepalive();
     keepAwakeOff();
@@ -1589,6 +1590,7 @@ async function finishReceive() {
 
   await closeCurrent();
   $('xfer-sub').textContent = s.totalSize && s.count > 1 ? '全部接收完成' : '已保存';
+  document.querySelector('.bar')?.classList.add('done');
   $('back').hidden = false;
   stopKeepalive();
   keepAwakeOff();
@@ -1930,6 +1932,7 @@ function resetAll() {
   s.chain = Promise.resolve();
 
   $('bar').style.width = '0%';
+  document.querySelector('.bar')?.classList.remove('done');
   $('xfer-stats').textContent = '准备中…';
   $('xfer-sub').textContent = '';
   $('xfer-name').textContent = '—';

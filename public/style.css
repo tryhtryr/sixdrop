@@ -439,6 +439,11 @@ button.link {
   transition: width 0.2s linear;
 }
 
+/* 传完之后主进度条也变绿，和文件行保持一致 */
+.bar.done > div {
+  background: #3ba776;
+}
+
 .verify {
   margin-top: 14px;
   padding: 10px 12px;
