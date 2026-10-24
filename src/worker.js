@@ -82,6 +82,9 @@ async function serveHtml(env, request, url, assetPath, { noindex = false } = {})
   const headers = new Headers(res.headers);
   headers.set('content-type', 'text/html; charset=utf-8');
   headers.delete('content-length');
+  // 页面是 Worker 现渲染的（还要注入验证 meta），不要被边缘缓存住，
+  // 否则刚部署的改动（比如站点验证标签）可能几分钟内都抓不到
+  headers.set('cache-control', 'no-store');
   if (noindex) headers.set('x-robots-tag', 'noindex, nofollow');
   return new Response(text, { status: res.status, headers });
 }

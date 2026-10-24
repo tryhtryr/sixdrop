@@ -44,8 +44,12 @@ if (!lines.length) {
   process.exit(1);
 }
 
-const block = [START, ...lines, END, ''].join('\n');
-html = html.replace('</head>', `${block}</head>`);
+const block = [START, ...lines, END].join('\n');
+// 尽量贴近 <head> 开头：有的解析器只读响应前面一段
+const anchor = /<meta charset="utf-8"\s*\/?>\n?/i.test(html)
+  ? /<meta charset="utf-8"\s*\/?>\n?/i
+  : /<head[^>]*>\n?/i;
+html = html.replace(anchor, (m) => `${m}${block}\n`);
 
 await writeFile(PATH, html, 'utf8');
 console.log('已写入：');
