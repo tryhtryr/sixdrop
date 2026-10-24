@@ -9,7 +9,7 @@ import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const OUT = join(ROOT, 'public', 'guide');
-const BASE = 'https://sixdrop.dev';
+const BASE = '__ORIGIN__';
 const UPDATED = '2026-10-24';
 
 const PAGES = [
@@ -28,7 +28,7 @@ const PAGES = [
           'SixDrop 的做法是让两个浏览器建立一条点对点通道，文件从电脑直接流到手机，不经过中间服务器。两边都不需要安装任何东西，只要能打开网页。',
         ],
         ol: [
-          '电脑和手机都打开 <a href="/">sixdrop.dev</a>。',
+          '电脑和手机都打开 [SixDrop](/)。',
           '在同一个 Wi-Fi 下：电脑的大厅里会直接出现手机的设备，点「申请加入」，手机上点「同意」。',
           '不在同一个网络：电脑上把 6 位取件码念给手机（或把链接发过去），手机在输入框里输码。',
           '电脑上选文件，手机上确认保存位置，开始传。',
@@ -90,7 +90,7 @@ const PAGES = [
         h2: '操作步骤',
         ol: [
           '确认两台设备连的是**同一个**路由器（不是「同名但不同频段的两套 SSID」，也不是手机热点）。',
-          '都打开 <a href="/">sixdrop.dev</a>，大厅里会列出对方的设备。',
+          '都打开 [SixDrop](/)，大厅里会列出对方的设备。',
           '点对方设备 → 对方点「同意」→ 进入同一个房间。',
           '发送方选文件（可多选），接收方选保存位置，开始传。',
         ],
@@ -141,7 +141,7 @@ const PAGES = [
       {
         h2: '具体怎么传',
         ol: [
-          '双方打开 <a href="/">sixdrop.dev</a>，不需要注册。',
+          '双方打开 [SixDrop](/)，不需要注册。',
           '同一网络：点对方的设备；不同网络：把 6 位取件码发给对方。',
           '选文件 → 对方确认保存位置 → 开始传。',
           '传完可以继续发下一批，也可以切到「消息」说两句。',
@@ -438,7 +438,8 @@ const esc = (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').
 const inline = (text) =>
   esc(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/`(.+?)`/g, '<code>$1</code>');
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((\/[^)]*)\)/g, '<a href="$2">$1</a>');
 
 const renderSections = (sections) =>
   sections

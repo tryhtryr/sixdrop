@@ -2,7 +2,7 @@
  * 房间模型验收：大厅只给码，输码进房间，房间里两个标签。
  *
  *   node tools/room-e2e.mjs
- *   BASE_URL=https://sixdrop.dev node tools/room-e2e.mjs
+ *   BASE_URL=http://127.0.0.1:8787 node tools/room-e2e.mjs
  *
  * 覆盖：
  *   打开只有取件码 + 输码框 · 输码进房间 · 房主自动进房间 · 两个标签来回切 ·

@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>WebRTC 点对点传文件的原理与安全边界</title>
     <meta name="description" content="SDP、ICE、STUN、DTLS 各是什么？为什么有的网络打不通？服务器能看到文件吗？把点对点传文件的原理和安全边界讲清楚。" />
-    <link rel="canonical" href="https://sixdrop.dev/guide/webrtc-p2p" />
+    <link rel="canonical" href="__ORIGIN__/guide/webrtc-p2p" />
     <meta name="robots" content="index, follow" />
     <meta property="og:type" content="article" />
     <meta property="og:title" content="WebRTC 点对点传文件的原理与安全边界" />
     <meta property="og:description" content="SDP、ICE、STUN、DTLS 各是什么？为什么有的网络打不通？服务器能看到文件吗？把点对点传文件的原理和安全边界讲清楚。" />
-    <meta property="og:url" content="https://sixdrop.dev/guide/webrtc-p2p" />
+    <meta property="og:url" content="__ORIGIN__/guide/webrtc-p2p" />
     <meta property="og:site_name" content="SixDrop" />
     <meta name="twitter:card" content="summary" />
     <link rel="stylesheet" href="/guide/guide.css" />
-    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"WebRTC 点对点传文件的原理与安全边界","description":"SDP、ICE、STUN、DTLS 各是什么？为什么有的网络打不通？服务器能看到文件吗？把点对点传文件的原理和安全边界讲清楚。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"https://sixdrop.dev/guide/webrtc-p2p","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"https://sixdrop.dev/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"https://sixdrop.dev/guide"},{"@type":"ListItem","position":3,"name":"WebRTC 原理与安全","item":"https://sixdrop.dev/guide/webrtc-p2p"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"为什么不做 TURN 中转加速？","acceptedAnswer":{"@type":"Answer","text":"TURN 会让所有流量过服务器，成本和隐私代价都高，而且用户会误以为自己在直连。这里选择「打不通就明说」，把中转做成一个显式选项。"}},{"@type":"Question","name":"校验码是文件哈希吗？","acceptedAnswer":{"@type":"Answer","text":"不是，是连接证书的指纹哈希，用来确认没有中间人。文件完整性由 DTLS 保证。"}},{"@type":"Question","name":"公司网完全不能用吗？","acceptedAnswer":{"@type":"Answer","text":"直连大概率不行；可以换手机热点重试，或者使用中转。"}}]}]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"WebRTC 点对点传文件的原理与安全边界","description":"SDP、ICE、STUN、DTLS 各是什么？为什么有的网络打不通？服务器能看到文件吗？把点对点传文件的原理和安全边界讲清楚。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"__ORIGIN__/guide/webrtc-p2p","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"__ORIGIN__/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"__ORIGIN__/guide"},{"@type":"ListItem","position":3,"name":"WebRTC 原理与安全","item":"__ORIGIN__/guide/webrtc-p2p"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"为什么不做 TURN 中转加速？","acceptedAnswer":{"@type":"Answer","text":"TURN 会让所有流量过服务器，成本和隐私代价都高，而且用户会误以为自己在直连。这里选择「打不通就明说」，把中转做成一个显式选项。"}},{"@type":"Question","name":"校验码是文件哈希吗？","acceptedAnswer":{"@type":"Answer","text":"不是，是连接证书的指纹哈希，用来确认没有中间人。文件完整性由 DTLS 保证。"}},{"@type":"Question","name":"公司网完全不能用吗？","acceptedAnswer":{"@type":"Answer","text":"直连大概率不行；可以换手机热点重试，或者使用中转。"}}]}]}</script>
   </head>
   <body>
     <div class="wrap">

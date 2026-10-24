@@ -1,12 +1,12 @@
 /**
  * 在真实浏览器里验证中转链路（重点看 CORS 和 ETag 暴露）。
- * 页面本身跑在 https://sixdrop.dev，PUT 直接打到 R2 的 S3 端点。
+ * 页面本身跑在 http://127.0.0.1:8787，PUT 直接打到 R2 的 S3 端点。
  */
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
-const BASE = process.env.BASE_URL || 'https://sixdrop.dev';
+const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
 const EDGE = [
   process.env.EDGE_PATH,
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',

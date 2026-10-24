@@ -42,7 +42,7 @@ const html = `<!doctype html><html><head><meta charset="utf-8"><style>
        background:linear-gradient(90deg,#4f8cff,#6fe0c8)}
 </style></head><body>
   <div class="glow"></div><div class="dots"></div>
-  <div class="top">${icon}<div class="brand">SixDrop<span>sixdrop.dev</span></div></div>
+  <div class="top">${icon}<div class="brand">SixDrop<span>127.0.0.1:8787</span></div></div>
   <h1>传个文件而已<br />为什么要<em>上传一遍</em>？</h1>
   <p class="sub">报 6 位取件码，两个浏览器直接对传</p>
   <div class="bar"></div>

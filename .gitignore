@@ -4,3 +4,5 @@ node_modules/
 *.log
 .cf-token
 .r2.json
+wrangler.prod.jsonc
+

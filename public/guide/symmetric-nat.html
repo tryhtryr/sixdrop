@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>公司网、校园网、对称 NAT 传不了文件怎么办</title>
     <meta name="description" content="打洞失败不是工具坏了，是 NAT 类型的问题。教你看懂失败页的候选统计，并按顺序尝试换网络、重连、中转三条路。" />
-    <link rel="canonical" href="https://sixdrop.dev/guide/symmetric-nat" />
+    <link rel="canonical" href="__ORIGIN__/guide/symmetric-nat" />
     <meta name="robots" content="index, follow" />
     <meta property="og:type" content="article" />
     <meta property="og:title" content="公司网、校园网、对称 NAT 传不了文件怎么办" />
     <meta property="og:description" content="打洞失败不是工具坏了，是 NAT 类型的问题。教你看懂失败页的候选统计，并按顺序尝试换网络、重连、中转三条路。" />
-    <meta property="og:url" content="https://sixdrop.dev/guide/symmetric-nat" />
+    <meta property="og:url" content="__ORIGIN__/guide/symmetric-nat" />
     <meta property="og:site_name" content="SixDrop" />
     <meta name="twitter:card" content="summary" />
     <link rel="stylesheet" href="/guide/guide.css" />
-    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"公司网、校园网、对称 NAT 传不了文件怎么办","description":"打洞失败不是工具坏了，是 NAT 类型的问题。教你看懂失败页的候选统计，并按顺序尝试换网络、重连、中转三条路。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"https://sixdrop.dev/guide/symmetric-nat","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"https://sixdrop.dev/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"https://sixdrop.dev/guide"},{"@type":"ListItem","position":3,"name":"对称 NAT 打不开","item":"https://sixdrop.dev/guide/symmetric-nat"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"手机热点能解决吗？","acceptedAnswer":{"@type":"Answer","text":"大多数情况下能。热点相当于换了一个 NAT，双方都在运营商 CGNAT 时仍有失败可能。"}},{"@type":"Question","name":"开了 VPN 会怎样？","acceptedAnswer":{"@type":"Answer","text":"常见结果是所有候选都走 VPN 出口，打洞失败或绕远；先关掉再试。"}},{"@type":"Question","name":"中转的文件安全吗？","acceptedAnswer":{"@type":"Answer","text":"只在你主动选择时上传，最多 24 小时自动删除，也可以立即手动删除。"}}]}]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"公司网、校园网、对称 NAT 传不了文件怎么办","description":"打洞失败不是工具坏了，是 NAT 类型的问题。教你看懂失败页的候选统计，并按顺序尝试换网络、重连、中转三条路。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"__ORIGIN__/guide/symmetric-nat","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"__ORIGIN__/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"__ORIGIN__/guide"},{"@type":"ListItem","position":3,"name":"对称 NAT 打不开","item":"__ORIGIN__/guide/symmetric-nat"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"手机热点能解决吗？","acceptedAnswer":{"@type":"Answer","text":"大多数情况下能。热点相当于换了一个 NAT，双方都在运营商 CGNAT 时仍有失败可能。"}},{"@type":"Question","name":"开了 VPN 会怎样？","acceptedAnswer":{"@type":"Answer","text":"常见结果是所有候选都走 VPN 出口，打洞失败或绕远；先关掉再试。"}},{"@type":"Question","name":"中转的文件安全吗？","acceptedAnswer":{"@type":"Answer","text":"只在你主动选择时上传，最多 24 小时自动删除，也可以立即手动删除。"}}]}]}</script>
   </head>
   <body>
     <div class="wrap">

@@ -5,7 +5,7 @@
  * 用法：
  *   node tools/e2e.mjs                       # 默认传 3 个文件
  *   SIZE_MB=64 node tools/e2e.mjs            # 单个大文件，测吞吐
- *   BASE_URL=https://sixdrop.dev node tools/e2e.mjs   # 打线上环境
+ *   BASE_URL=http://127.0.0.1:8787 node tools/e2e.mjs   # 打线上环境
  */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';

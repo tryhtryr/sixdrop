@@ -26,16 +26,84 @@ function makeCode() {
   return out;
 }
 
+/* ---------------- 静态页与 SEO 文件 ---------------- */
+
+// 仓库里不写死域名：sitemap / robots / 页面里的 canonical 都用请求的 origin 生成
+const SITE_PATHS = [
+  ['/', '1.0', 'weekly'],
+  ['/about', '0.8', 'monthly'],
+  ['/guide', '0.8', 'monthly'],
+  ['/guide/phone-to-pc', '0.7', 'monthly'],
+  ['/guide/lan-large-files', '0.7', 'monthly'],
+  ['/guide/no-cloud', '0.7', 'monthly'],
+  ['/guide/webrtc-p2p', '0.7', 'monthly'],
+  ['/guide/symmetric-nat', '0.7', 'monthly'],
+];
+const SITE_UPDATED = '2026-10-24';
+
+function sitemap(url) {
+  const rows = SITE_PATHS.map(
+    ([path, priority, changefreq]) =>
+      `  <url>\n    <loc>${url.origin}${path}</loc>\n    <lastmod>${SITE_UPDATED}</lastmod>\n` +
+      `    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`,
+  ).join('\n');
+
+  return new Response(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${rows}\n</urlset>\n`,
+    {
+      headers: {
+        'content-type': 'application/xml; charset=utf-8',
+        'cache-control': 'public, max-age=300',
+      },
+    },
+  );
+}
+
+function robots(url) {
+  const body =
+    'User-agent: *\nAllow: /\n\n' +
+    '# 分享页是一次性的，不该被收录\nDisallow: /d/\nDisallow: /api/\n\n' +
+    `Sitemap: ${url.origin}/sitemap.xml\n`;
+  return new Response(body, {
+    headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'public, max-age=300' },
+  });
+}
+
+/**
+ * 取静态 HTML 并把 __ORIGIN__ 换成当前请求的 origin。
+ * 这样 canonical / og:url / JSON-LD 在任何域名下都正确，仓库里不需要出现域名。
+ */
+async function serveHtml(env, request, url, assetPath, { noindex = false } = {}) {
+  const res = await env.ASSETS.fetch(new Request(new URL(assetPath, url.origin), request));
+  const type = res.headers.get('content-type') || '';
+  if (!type.includes('text/html')) return res;
+
+  const text = (await res.text()).replaceAll('__ORIGIN__', url.origin);
+  const headers = new Headers(res.headers);
+  headers.set('content-type', 'text/html; charset=utf-8');
+  headers.delete('content-length');
+  if (noindex) headers.set('x-robots-tag', 'noindex, nofollow');
+  return new Response(text, { status: res.status, headers });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // 统一到 https://sixdrop.dev：www 和 http 都 301，避免重复 URL 分散抓取预算
-    // （本地 dev 的 host 不是六个 drop 的域名，不受影响）
-    const prodHost = url.hostname === 'sixdrop.dev' || url.hostname === 'www.sixdrop.dev';
-    if (prodHost && (url.hostname === 'www.sixdrop.dev' || url.protocol === 'http:')) {
-      return Response.redirect(new URL(url.pathname + url.search, 'https://sixdrop.dev').toString(), 301);
+    // 统一到一个 host + https：www 去掉，http 升 https（host 来自请求，不写死域名）
+    const apex = url.hostname.replace(/^www\./, '');
+    const isLocal =
+      url.hostname === 'localhost' ||
+      url.hostname === '127.0.0.1' ||
+      url.hostname === '[::1]' ||
+      /^\d+\.\d+\.\d+\.\d+$/.test(url.hostname);
+    if (!isLocal && (url.hostname !== apex || url.protocol === 'http:')) {
+      return Response.redirect(new URL(url.pathname + url.search, `https://${apex}`).toString(), 301);
     }
+
+    // sitemap / robots 按请求域名生成，仓库里不写死域名
+    if (url.pathname === '/sitemap.xml') return sitemap(url);
+    if (url.pathname === '/robots.txt') return robots(url);
 
     if (url.pathname === '/api/room') {
       if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
@@ -89,31 +157,27 @@ export default {
 
     // 首页：Assets 关掉了自动 index 解析，这里显式指到 index.html
     if (url.pathname === '/' || url.pathname === '/index.html') {
-      return env.ASSETS.fetch(new Request(new URL('/index.html', url.origin), request));
+      return serveHtml(env, request, url, '/index.html');
     }
 
     if (url.pathname.startsWith('/d/')) {
-      // 用 '/index.html' 而不是 '/'
-      const page = await env.ASSETS.fetch(new Request(new URL('/index.html', url.origin), request));
-      const out = new Response(page.body, page);
       // 分享页是一次性的，别让搜索引擎收录
-      out.headers.set('x-robots-tag', 'noindex, nofollow');
-      return out;
+      return serveHtml(env, request, url, '/index.html', { noindex: true });
     }
 
     // 静态页面的好看 URL：/about → /about.html（避免 Assets 的目录重定向）
     if (url.pathname === '/about' || url.pathname === '/about/') {
-      return env.ASSETS.fetch(new Request(new URL('/about.html', url.origin), request));
+      return serveHtml(env, request, url, '/about.html');
     }
 
     // 指南页：/guide → /guide/index.html；/guide/<slug> → /guide/<slug>.html
     if (url.pathname === '/guide' || url.pathname === '/guide/') {
-      return env.ASSETS.fetch(new Request(new URL('/guide/index.html', url.origin), request));
+      return serveHtml(env, request, url, '/guide/index.html');
     }
     if (url.pathname.startsWith('/guide/') && !url.pathname.endsWith('.html')) {
       const slug = url.pathname.slice('/guide/'.length).replace(/\/+$/, '');
       if (/^[a-z0-9-]{2,60}$/.test(slug)) {
-        return env.ASSETS.fetch(new Request(new URL(`/guide/${slug}.html`, url.origin), request));
+        return serveHtml(env, request, url, `/guide/${slug}.html`);
       }
     }
 

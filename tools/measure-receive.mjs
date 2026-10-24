@@ -41,7 +41,7 @@ await page.addInitScript(() => {
   };
 });
 
-await page.goto('https://sixdrop.dev', { waitUntil: 'domcontentloaded' });
+await page.goto('http://127.0.0.1:8787', { waitUntil: 'domcontentloaded' });
 log(`打开首页，输入取件码 ${code}`);
 await page.fill('#code', code);
 await page.press('#code', 'Enter');

@@ -134,7 +134,7 @@ Object.assign(env, {
 
 await test('中转分享页：创建后能取回清单和预签名链接', async () => {
   const created = await worker.fetch(
-    new Request('https://sixdrop.dev/api/drop', {
+    new Request('https://example.test/api/drop', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ files: [{ name: 'a.bin', size: 10, key: 'r/uuid/a.bin' }] }),
@@ -145,9 +145,9 @@ await test('中转分享页：创建后能取回清单和预签名链接', async
   assert.equal(created.status, 200);
   const data = await created.json();
   assert.match(data.token, /^[2-9A-HJ-NP-Z]{10}$/);
-  assert.equal(data.url, `https://sixdrop.dev/d/${data.token}`);
+  assert.equal(data.url, `https://example.test/d/${data.token}`);
 
-  const got = await worker.fetch(new Request(`https://sixdrop.dev/api/drop/${data.token}`), env);
+  const got = await worker.fetch(new Request(`https://example.test/api/drop/${data.token}`), env);
   assert.equal(got.status, 200);
   const list = await got.json();
   assert.equal(list.files.length, 1);
@@ -157,7 +157,7 @@ await test('中转分享页：创建后能取回清单和预签名链接', async
 
 await test('分享页：没有文件拒收、token 格式不对拒收', async () => {
   const empty = await worker.fetch(
-    new Request('https://sixdrop.dev/api/drop', {
+    new Request('https://example.test/api/drop', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ files: [] }),
@@ -166,10 +166,10 @@ await test('分享页：没有文件拒收、token 格式不对拒收', async ()
   );
   assert.equal(empty.status, 400);
 
-  const bad = await worker.fetch(new Request('https://sixdrop.dev/api/drop/nope!'), env);
+  const bad = await worker.fetch(new Request('https://example.test/api/drop/nope!'), env);
   assert.equal(bad.status, 400);
 
-  const missing = await worker.fetch(new Request('https://sixdrop.dev/api/drop/23456789AB'), env);
+  const missing = await worker.fetch(new Request('https://example.test/api/drop/23456789AB'), env);
   assert.equal(missing.status, 404);
 });
 

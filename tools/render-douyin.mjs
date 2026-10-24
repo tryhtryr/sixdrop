@@ -252,7 +252,7 @@ const end = `<!doctype html><html><head><meta charset="utf-8"><style>
   <h2>SixDrop</h2>
   <div class="lead">不用注册，不用装 App<br />打开网页就能传</div>
   <div class="how">
-    <div class="s">搜 <b>SixDrop</b>，或者输 <b>sixdrop.dev</b></div>
+    <div class="s">搜 <b>SixDrop</b>，或者输 <b>127.0.0.1:8787</b></div>
     <div class="s" style="margin-top:14px;font-size:28px;color:#7e91ab">6 位取件码 · 点对点直传</div>
   </div>
   <div class="tag">05 / 05</div>

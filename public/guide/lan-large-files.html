@@ -5,16 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>同一个 Wi-Fi 下传大文件：为什么点对点比网盘快</title>
     <meta name="description" content="两台设备连同一个路由器时，文件可以走局域网直连，不占用宽带上行。讲清楚原理、实操步骤，以及为什么实际速度还是会有差异。" />
-    <link rel="canonical" href="https://sixdrop.dev/guide/lan-large-files" />
+    <link rel="canonical" href="__ORIGIN__/guide/lan-large-files" />
     <meta name="robots" content="index, follow" />
     <meta property="og:type" content="article" />
     <meta property="og:title" content="同一个 Wi-Fi 下传大文件：为什么点对点比网盘快" />
     <meta property="og:description" content="两台设备连同一个路由器时，文件可以走局域网直连，不占用宽带上行。讲清楚原理、实操步骤，以及为什么实际速度还是会有差异。" />
-    <meta property="og:url" content="https://sixdrop.dev/guide/lan-large-files" />
+    <meta property="og:url" content="__ORIGIN__/guide/lan-large-files" />
     <meta property="og:site_name" content="SixDrop" />
     <meta name="twitter:card" content="summary" />
     <link rel="stylesheet" href="/guide/guide.css" />
-    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"同一个 Wi-Fi 下传大文件：为什么点对点比网盘快","description":"两台设备连同一个路由器时，文件可以走局域网直连，不占用宽带上行。讲清楚原理、实操步骤，以及为什么实际速度还是会有差异。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"https://sixdrop.dev/guide/lan-large-files","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"https://sixdrop.dev/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"https://sixdrop.dev/guide"},{"@type":"ListItem","position":3,"name":"同一 Wi-Fi 传大文件","item":"https://sixdrop.dev/guide/lan-large-files"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"为什么不走网盘的上传？","acceptedAnswer":{"@type":"Answer","text":"网盘必须先把文件完整上传到服务器，对方才能下载；局域网直连是两台设备之间直接传，省掉了上传这一步。"}},{"@type":"Question","name":"千兆网线会比 Wi-Fi 快吗？","acceptedAnswer":{"@type":"Answer","text":"通常会。有线少了无线重传和信号衰减，速度更稳定。"}},{"@type":"Question","name":"支持断点续传吗？","acceptedAnswer":{"@type":"Answer","text":"不支持。传输中断需要重传；传完之后可以在同一个房间里再发。"}}]}]}</script>
+    <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"同一个 Wi-Fi 下传大文件：为什么点对点比网盘快","description":"两台设备连同一个路由器时，文件可以走局域网直连，不占用宽带上行。讲清楚原理、实操步骤，以及为什么实际速度还是会有差异。","inLanguage":"zh-CN","dateModified":"2026-10-24","datePublished":"2026-10-24","mainEntityOfPage":"__ORIGIN__/guide/lan-large-files","author":{"@type":"Organization","name":"SixDrop"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"SixDrop","item":"__ORIGIN__/"},{"@type":"ListItem","position":2,"name":"使用指南","item":"__ORIGIN__/guide"},{"@type":"ListItem","position":3,"name":"同一 Wi-Fi 传大文件","item":"__ORIGIN__/guide/lan-large-files"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"为什么不走网盘的上传？","acceptedAnswer":{"@type":"Answer","text":"网盘必须先把文件完整上传到服务器，对方才能下载；局域网直连是两台设备之间直接传，省掉了上传这一步。"}},{"@type":"Question","name":"千兆网线会比 Wi-Fi 快吗？","acceptedAnswer":{"@type":"Answer","text":"通常会。有线少了无线重传和信号衰减，速度更稳定。"}},{"@type":"Question","name":"支持断点续传吗？","acceptedAnswer":{"@type":"Answer","text":"不支持。传输中断需要重传；传完之后可以在同一个房间里再发。"}}]}]}</script>
   </head>
   <body>
     <div class="wrap">
@@ -34,7 +34,7 @@
 <p>当然，这不是「无限快」：实际速度取决于 Wi-Fi 频段、信号强度、两台设备的网卡和磁盘。5 GHz 通常明显好于 2.4 GHz；机械硬盘写入和手机存储也会成为瓶颈。</p>
 <h2>操作步骤</h2>
 <p>传完房间还在：可以再发一批，也可以切到「消息」发文字，不用重新建连接。</p>
-<ol><li>确认两台设备连的是<strong>同一个</strong>路由器（不是「同名但不同频段的两套 SSID」，也不是手机热点）。</li><li>都打开 &lt;a href="/"&gt;sixdrop.dev&lt;/a&gt;，大厅里会列出对方的设备。</li><li>点对方设备 → 对方点「同意」→ 进入同一个房间。</li><li>发送方选文件（可多选），接收方选保存位置，开始传。</li></ol>
+<ol><li>确认两台设备连的是<strong>同一个</strong>路由器（不是「同名但不同频段的两套 SSID」，也不是手机热点）。</li><li>都打开 <a href="/">SixDrop</a>，大厅里会列出对方的设备。</li><li>点对方设备 → 对方点「同意」→ 进入同一个房间。</li><li>发送方选文件（可多选），接收方选保存位置，开始传。</li></ol>
 <h2>大文件的三个实际限制</h2>
 <table><thead><tr><th>限制</th><th>说明</th></tr></thead><tbody><tr><td>接收端写盘方式</td><td>Chrome / Edge 可以边收边写；Firefox / Safari 先收进内存，单文件建议 &lt; 1 GB</td></tr><tr><td>接收方磁盘空间</td><td>直连没有硬性大小上限，但要留得下文件</td></tr><tr><td>无线稳定性</td><td>Wi-Fi 信号差时会出现重传，速度下降甚至卡住；页面会等对方接住，不会直接判失败</td></tr></tbody></table>
 <h2>看不到对方设备？</h2>

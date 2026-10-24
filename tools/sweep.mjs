@@ -32,7 +32,7 @@ for (const [water, low] of CONFIGS) {
   const senderPromise = run(
     process.execPath,
     ['tools/measure-send.mjs', String(MB)],
-    { SEND_URL: `https://sixdrop.dev/?water=${water}&low=${low}` },
+    { SEND_URL: `http://127.0.0.1:8787/?water=${water}&low=${low}` },
     (s) => {
       const m = s.match(/取件码\s+([2-9A-HJ-NP-Z]{6})/);
       if (m) code = m[1];

@@ -6,7 +6,7 @@
 
 一个跑在 Cloudflare Workers 上的浏览器点对点传文件站：
 
-**线上地址：<https://sixdrop.dev>**
+**线上地址：<https://github.com/tryhtryr/sixdrop>**
 
 - 打开页面就进大厅：上面是自己的 6 位取件码 + 输码框，下面是**同一网络里的设备**（设备图标 + 随机名字，比如「温柔的海狸」+ 平台），点「申请加入」、对方点「同意」就进同一个房间
 - 每台设备第一次会随机起一个名字，可以点「改名」；两台都是「Windows · Edge」时也分得清
@@ -20,7 +20,7 @@
 
 信令层在免费额度内（Workers Free + Durable Objects Free），成本为 0。
 
-域名：**`sixdrop.dev`**（已注册并绑定）。`.com` 已被他人持有，`.app` 同价首年但续费更贵，没买。
+域名：作者自己在一个私有域名上运行，仓库里**不包含任何域名**；fork 之后可以直接部署到你自己的 `workers.dev` 子域。
 
 ## 目录
 ```
@@ -64,13 +64,20 @@ npm run dev:local  # 零依赖垫片，用 Node 直接跑真实的 worker/room �
 
 ## 绑定你自己的域名（可选）
 
-`wrangler.jsonc` 末尾的 `routes` 里写的是**作者自己的域名**（`sixdrop.dev`）。你自己部署时请把它换成你的，或者删掉只留 `workers.dev`：
+仓库里的 `wrangler.jsonc` **没有写任何域名**，所以 `wrangler deploy` 开箱即用，会部署到 `https://sixdrop.<你的子域>.workers.dev`。
 
-1. 在 Cloudflare 里加上你要用的域名（Add a site → 按提示改 NS → 等 zone 变 Active）；
-2. 把 `routes[].pattern` 改成你的域名（例如 `drop.example.com`），`custom_domain: true` 会自动建 DNS 记录并签发证书，不用手动加 CNAME；
-3. 不想绑域名就删掉 `routes`，保留 `workers_dev: true`，直接用 `https://sixdrop.<你的子域>.workers.dev`。
+想绑自己的域名，两种方式都行：
 
-> ⚠️ 不要照抄仓库里的 `sixdrop.dev`：那是作者已经注册并绑定的域名，你加不进去，也不该加。不改这一行，`wrangler deploy` 会直接失败。
+1. **控制台**：Workers → 你的 worker → Settings → Domains & Routes → Add custom domain（自动建 DNS 记录和证书）；
+2. **配置**：在 `wrangler.jsonc` 里加一段（自己维护的配置别提交，或提交前把域名换成占位符）：
+
+```jsonc
+"routes": [
+  { "pattern": "drop.example.com", "custom_domain": true }
+]
+```
+
+> `sitemap.xml`、`robots.txt` 和页面里的 canonical / og:url 都由 Worker 按**请求的域名**动态生成，所以换域名不用改代码，仓库里也不需要出现真实域名。
 
 ## 为什么没有 TURN
 
@@ -101,7 +108,7 @@ Cloudflare Workers 没有 UDP 入站，没法自建 TURN；官方 Realtime TURN 
 
 **1. 边传边下。** 每个文件传完立刻推一条 `relay-file`，接收方可以开始下第一个文件，同时后面的还在上传。
 
-**2. 分享页（对方关掉页面也能拿）。** 全部传完后自动生成 `https://sixdrop.dev/d/<10 位 token>`，24 小时有效：
+**2. 分享页（对方关掉页面也能拿）。** 全部传完后自动生成 `https://github.com/tryhtryr/sixdrop/d/<10 位 token>`，24 小时有效：
 
 - 不依赖房间，接收方什么时候打开都行
 - 页面会现签下载链接（1 小时有效），所以链接过期也能刷新重拿
@@ -124,7 +131,7 @@ Cloudflare Workers 没有 UDP 入站，没法自建 TURN；官方 Realtime TURN 
 生产环境已经就绪的部分：
 
 - bucket：**`sixdrop-files-apac`**，区域 **APAC**，存储类 Standard
-- CORS：允许 `https://sixdrop.dev` / `https://www.sixdrop.dev` 的 PUT/GET/HEAD，暴露 `ETag`
+- CORS：允许你自己的域名（含 `www`）的 PUT/GET/HEAD，暴露 `ETag`
 - 生命周期：**1 天**自动删除
 - Worker secret：`R2_ACCOUNT_ID`、`R2_BUCKET` 已写入
 
@@ -216,7 +223,7 @@ cd .. && npm run test:e2e
 
 ```bash
 SIZE_MB=64 npm run test:e2e   # 改成单个大文件，测吞吐
-BASE_URL=https://sixdrop.dev npm run test:e2e  # 打线上环境
+BASE_URL=https://<你的域名> npm run test:e2e  # 打线上环境
 ```
 
 在 Edge 155 headless 上实测：3 文件模式、单文件 16 MB / 64 MB 均通过。
@@ -226,7 +233,7 @@ BASE_URL=https://sixdrop.dev npm run test:e2e  # 打线上环境
 
 ```bash
 npm run test:room     # 或 node tools/room-e2e.mjs
-BASE_URL=https://sixdrop.dev node tools/room-e2e.mjs
+BASE_URL=https://<你的域名> node tools/room-e2e.mjs
 ```
 
 覆盖：打开页面只有取件码 → 输码进房间 → 房主自动进房间 → 两个标签来回切 →
@@ -236,7 +243,7 @@ BASE_URL=https://sixdrop.dev node tools/room-e2e.mjs
 
 ```bash
 npm run test:discover     # 或 node tools/discover-e2e.mjs
-BASE_URL=https://sixdrop.dev node tools/discover-e2e.mjs
+BASE_URL=https://<你的域名> node tools/discover-e2e.mjs
 ```
 
 覆盖：两台互相发现 → 申请 → 房主同意 → 进同一个房间 → 传文件 → 进房间后从列表消失 →
@@ -256,7 +263,7 @@ npm run test:r2
 三个检查依次跑：
 
 1. `tools/r2-check.mjs` — 服务端视角：单次 PUT、分片上传 + 合并，各自下载回来比对 SHA-256
-2. `tools/relay-browser.mjs` — 从 `sixdrop.dev` 页面里用 XHR 直传 R2，验证 CORS 和 `ETag` 暴露
+2. `tools/relay-browser.mjs` — 从你的站点页面里用 XHR 直传 R2，验证 CORS 和 `ETag` 暴露
 3. `tools/relay-ui.mjs` — 把 `RTCPeerConnection` 打掉强制失败，发送方点「改用中转」，验证两边都能拿到链接并成功下载
 4. `tools/relay-ui-receiver.mjs` — 同样强制失败，但由**接收方**点「改用中转」，发送方收到 `relay-request` 后自动上传
 

@@ -21,7 +21,7 @@ const browser = await chromium.launch(EDGE ? { executablePath: EDGE, headless: t
 const page = await browser.newPage({ viewport: { width: 900, height: 900 } });
 page.on('pageerror', (e) => console.log('  页面错误:', e.message));
 
-await page.goto(process.env.SEND_URL || 'https://sixdrop.dev', { waitUntil: 'domcontentloaded' });
+await page.goto(process.env.SEND_URL || 'http://127.0.0.1:8787', { waitUntil: 'domcontentloaded' });
 
 // 造一个 MB 大小的文件塞进文件选择框
 await page.evaluate((mb) => {
@@ -46,7 +46,7 @@ console.log('');
 console.log('  ╔════════════════════════════════╗');
 console.log(`  ║   取件码   ${code}            ║`);
 console.log('  ╚════════════════════════════════╝');
-console.log(`  文件：${MB} MB · 在手机 sixdrop.dev 输入上面的码并点接收`);
+console.log(`  文件：${MB} MB · 在手机 127.0.0.1:8787 输入上面的码并点接收`);
 console.log('');
 
 log('等待手机接入…');

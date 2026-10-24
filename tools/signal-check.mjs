@@ -3,7 +3,7 @@
  */
 import assert from 'node:assert/strict';
 
-const BASE = process.env.BASE_URL || 'https://sixdrop.dev';
+const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
 const WS = BASE.replace('http', 'ws');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 

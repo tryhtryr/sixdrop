@@ -8,7 +8,7 @@
 
 No install. No account. Files never touch the server.
 
-[**sixdrop.dev**](https://sixdrop.dev) · [中文说明](README.zh.md)
+[**GitHub**](https://github.com/tryhtryr/sixdrop) · [中文说明](README.zh.md)
 
 </div>
 
@@ -65,7 +65,7 @@ npm install
 npx wrangler deploy
 ```
 
-`wrangler.jsonc` needs a domain or a `workers.dev` subdomain. **The committed `routes` point at the author's own domain (`sixdrop.dev`)**: replace the `pattern` with your domain, or delete `routes` and keep `workers_dev: true` — `wrangler deploy` fails if you leave it as-is.
+`wrangler.jsonc` ships **without any domain**: `wrangler deploy` works out of the box and publishes to `https://sixdrop.<your-subdomain>.workers.dev`. To use your own domain, add a `routes` entry with `custom_domain: true` (or bind it from the Cloudflare dashboard) — `sitemap.xml`, `robots.txt`, canonical and `og:url` are generated from the request host, so no code changes are needed.
 Durable Objects are SQLite-backed and work on the free plan.
 
 To enable the R2 fallback, create a bucket and set four secrets:

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { handleRelay } from '../src/relay.js';
 
-const endpoint = (p) => new URL(`https://sixdrop.dev${p}`);
+const endpoint = (p) => new URL(`https://example.test${p}`);
 
 const CFG = {
   R2_ACCOUNT_ID: '0123456789abcdef0123456789abcdef',

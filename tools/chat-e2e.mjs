@@ -1,7 +1,7 @@
 /**
  * 端到端验证「消息」：两个真实浏览器页面互发消息。
  *   node tools/chat-e2e.mjs
- *   BASE_URL=https://sixdrop.dev node tools/chat-e2e.mjs
+ *   BASE_URL=http://127.0.0.1:8787 node tools/chat-e2e.mjs
  */
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';

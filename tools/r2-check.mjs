@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import { createHash, randomBytes } from 'node:crypto';
 
-const BASE = process.env.BASE_URL || 'https://sixdrop.dev';
+const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
 const sha = (buf) => createHash('sha256').update(buf).digest('hex');
 
 const post = async (path, body) => {

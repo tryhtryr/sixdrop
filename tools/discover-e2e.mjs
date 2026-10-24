@@ -2,7 +2,7 @@
  * 同网发现验收：发现 → 申请 → 房主同意 → 进房间 → 传文件；以及拒绝、可见开关。
  *
  *   node tools/discover-e2e.mjs
- *   BASE_URL=https://sixdrop.dev node tools/discover-e2e.mjs
+ *   BASE_URL=http://127.0.0.1:8787 node tools/discover-e2e.mjs
  *
  * 说明：分组键是出口 IP（本地 dev-server 拿不到 CF-Connecting-IP，统一按 dev 分组），
  * 所以两个 context 在同一个进程里天然「同网」，线上跑也用同一台机器的公网 IP。

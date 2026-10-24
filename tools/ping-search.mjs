@@ -1,12 +1,12 @@
 /**
  * 百度普通收录 API 推送（每天有配额，只推新 URL）。
  *   BAIDU_TOKEN=xxxx node tools/ping-search.mjs
- * 也支持只推一条： BAIDU_TOKEN=xxx node tools/ping-search.mjs https://sixdrop.dev/guide
+ * 也支持只推一条： BAIDU_TOKEN=xxx node tools/ping-search.mjs http://127.0.0.1:8787/guide
  */
 import { readFile } from 'node:fs/promises';
 
 const TOKEN = process.env.BAIDU_TOKEN || '';
-const SITE = process.env.BAIDU_SITE || 'sixdrop.dev';
+const SITE = process.env.BAIDU_SITE || '127.0.0.1:8787';
 
 if (!TOKEN) {
   console.error('缺少 BAIDU_TOKEN：在百度搜索资源平台 → 数据引入 → API 提交 里拿 token');

@@ -2,7 +2,7 @@
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
-const BASE = process.env.BASE_URL || 'https://sixdrop.dev';
+const BASE = process.env.BASE_URL || 'http://127.0.0.1:8787';
 const EDGE = [
   process.env.EDGE_PATH,
   'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',

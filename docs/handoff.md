@@ -4,7 +4,7 @@
 
 ## 一、项目状态
 
-**线上：<https://sixdrop.dev>**（Cloudflare Workers + Durable Objects + R2）
+**线上：<https://github.com/tryhtryr/sixdrop>**（Cloudflare Workers + Durable Objects + R2）
 **仓库：<https://github.com/tryhtryr/sixdrop>**（无 LICENSE，public 但非开源）
 **本地：`E:\sixdrop`**（唯一副本）
 
@@ -213,17 +213,21 @@ node tools/discover-e2e.mjs # 同网发现验收
 
 ## 六、部署
 
+仓库里的 `wrangler.jsonc` **不含域名**（自定义域名绑在控制台），所以平时用本地那份 `wrangler.prod.jsonc` 部署：它含作者的域名、被 `.gitignore` 掉了。
+
 ```bash
 cd E:\sixdrop
-npx wrangler deploy        # 线上 = 主分支 public/ 的内容
+npx wrangler deploy --config wrangler.prod.jsonc
 ```
+
+（不带 `--config` 也能部署，只是不会绑自定义域名。）
 
 本机没有全局 `npm`/`npx`，实际可用的写法：
 
 ```powershell
 $env:PATH = "C:\Users\jian\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin;" + $env:PATH
 cd E:\sixdrop
-node node_modules\wrangler\bin\wrangler.js deploy
+node node_modules\wrangler\bin\wrangler.js deploy --config wrangler.prod.jsonc
 ```
 
 认证信息在 `%APPDATA%\xdg.config\.wrangler\config\default.toml`（wrangler 4 的位置）。
@@ -232,10 +236,10 @@ node node_modules\wrangler\bin\wrangler.js deploy
 部署后必须做的回归（线上）：
 
 ```bash
-BASE_URL=https://sixdrop.dev node tools/e2e.mjs
-BASE_URL=https://sixdrop.dev node tools/chat-e2e.mjs
-BASE_URL=https://sixdrop.dev node tools/room-e2e.mjs
-BASE_URL=https://sixdrop.dev node tools/discover-e2e.mjs
+BASE_URL=https://<你的域名> node tools/e2e.mjs
+BASE_URL=https://<你的域名> node tools/chat-e2e.mjs
+BASE_URL=https://<你的域名> node tools/room-e2e.mjs
+BASE_URL=https://<你的域名> node tools/discover-e2e.mjs
 ```
 
 新增 Durable Object 类（这次是 `Lobby`）必须同时改 `wrangler.jsonc` 的 `migrations`

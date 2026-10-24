@@ -45,7 +45,7 @@ const wide = `<!doctype html><html><head><meta charset="utf-8"><style>
     <h1>传个文件而已<br />为什么要<em>上传一遍</em>？</h1>
     <div class="sub">报 6 位取件码，两个浏览器直接对传</div>
   </div>
-  <div class="right">${icon}<div class="d">sixdrop.dev</div></div>
+  <div class="right">${icon}<div class="d">127.0.0.1:8787</div></div>
 </body></html>`;
 
 /* ---------- 正方形 200×200（用于分享缩略图） ---------- */

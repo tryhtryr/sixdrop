@@ -24,12 +24,8 @@
     { "tag": "v3", "new_sqlite_classes": ["Lobby"] }
   ],
   "observability": { "enabled": true },
-  "workers_dev": true,
+  "workers_dev": true
 
-  // 自定义域名：zone 已激活，deploy 时会自动建 DNS 记录并签发证书
-  // ⚠️ 这两个是作者自己的域名。自己部署请换成你的，或把整段删掉（只保留 workers.dev）
-  "routes": [
-    { "pattern": "sixdrop.dev", "custom_domain": true },
-    { "pattern": "www.sixdrop.dev", "custom_domain": true }
-  ]
+  // 自定义域名不写进仓库：在 Cloudflare 控制台 Workers → 你的 worker → Settings →
+  // Domains & Routes → Add custom domain 绑定即可；自己部署时也能直接用 workers.dev 子域。
 }
