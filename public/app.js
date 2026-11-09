@@ -42,6 +42,7 @@ const s = {
   accepted: false,
   relayEnabled: false,
   relayStarted: false,
+  relayPending: false,
   rxAt: 0,
   rxBase: 0,
   rxSpeed: 0,
@@ -668,10 +669,10 @@ function fail(title, text) {
   $('error-diag').textContent = interrupted
     ? '直连本来是通的（已经传过数据），这次是传输中断；换成「重新尝试」会用同一个取件码重连。'
     : diag;
-  // 发送方有文件可以直接传；接收方只能请对方传
-  $('use-relay').hidden = !(
-    s.relayEnabled && (s.files.length > 0 || s.role === 'receiver')
-  );
+  // 中继可用就两边都给入口：发送方没选文件时点了先去选，选完直接开始上传
+  $('use-relay').hidden = !s.relayEnabled;
+  $('use-relay').textContent =
+    s.role === 'sender' && !s.files.length ? '选文件并改用中转' : '改用中转';
   show('error');
 
   // 让对端也知道这次打不通，否则它会一直停在等待页
@@ -1907,6 +1908,7 @@ function resetAll() {
   s.acceptResolver = null;
   s.accepted = false;
   s.relayStarted = false;
+  s.relayPending = false;
   s.rxAt = 0;
   s.rxBase = 0;
   s.rxSpeed = 0;
@@ -2139,6 +2141,11 @@ $('copy-link').addEventListener('click', async () => {
 $('file-wait').addEventListener('change', (ev) => {
   takeFiles(ev.target.files);
   ev.target.value = '';
+  // 从失败页点的「选文件并改用中转」：选完直接开始上传
+  if (s.relayPending && s.files.length) {
+    s.relayPending = false;
+    startRelay();
+  }
 });
 
 /** 房间里选文件：点选择框或直接拖进来 */
@@ -2384,8 +2391,11 @@ $('chat-form').addEventListener('submit', (ev) => {
 });
 
 $('use-relay').addEventListener('click', () => {
-  if (s.role === 'sender') startRelay();
-  else requestRelay();
+  if (s.role === 'receiver') return requestRelay();
+  if (s.files.length) return startRelay();
+  // 还没选文件：先让用户选，选完自动开始中继上传
+  s.relayPending = true;
+  $('file-wait').click();
 });
 
 $('relay-back').addEventListener('click', () => {
