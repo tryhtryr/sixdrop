@@ -939,7 +939,9 @@ async function onSignal(msg) {
     case 'relay-error':
       clearTimeout(s.relayTimer);
       if (!$('view-relay').hidden) {
-        $('relay-stats').textContent = `对方上传失败：${msg.message || '未知错误'}`;
+        $('relay-stats').textContent = `没能中转：${msg.message || '未知错误'}`;
+        $('relay-note').textContent =
+          '可以让对方在房间里选好文件，再点一次「改用中转」；或者换个网络重试直连。';
       } else {
         toast(msg.message || '对方无法中转');
       }
@@ -951,8 +953,27 @@ async function onSignal(msg) {
           toast('对方请求改用中转');
           startRelay();
         } else {
-          sendSignal({ t: 'relay-error', message: '对方这次没有要传的文件' });
+          // 还没选文件：把房主引导到失败页，点按钮选文件后自动上传
+          s.relayPending = true;
+          sendSignal({ t: 'relay-waiting' });
+          $('error-title').textContent = '对方请求改用中转';
+          $('error-text').textContent =
+            '对方那边打不通直连，想请你把文件传上来。点下面的按钮选好文件，会自动开始上传。';
+          $('error-diag').textContent = '';
+          $('use-relay').hidden = !s.relayEnabled;
+          $('use-relay').textContent = '选文件并上传';
+          toast('对方请求改用中转，请选择要传的文件');
+          show('error');
         }
+      }
+      break;
+
+    case 'relay-waiting':
+      if (s.role === 'receiver') {
+        // 对方在选文件，别让 15 秒的超时误报「没响应」
+        clearTimeout(s.relayTimer);
+        $('relay-note').textContent = '对方正在选择文件，选好后会自动开始上传，这里会显示进度。';
+        toast('对方正在准备文件…');
       }
       break;
 
