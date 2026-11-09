@@ -158,8 +158,22 @@ export default {
       return getDrop(env, url);
     }
 
+    // 非规范 URL 一律 301 到规范地址：不然 Google 会把同一页当成多个「备用网页」
+    const alias =
+      url.pathname === '/index.html'
+        ? '/'
+        : url.pathname === '/about.html' || url.pathname === '/about/'
+          ? '/about'
+          : url.pathname === '/guide/index.html' || url.pathname === '/guide/'
+            ? '/guide'
+            : /^\/guide\/[a-z0-9-]{2,60}\/$/.test(url.pathname) ||
+                /^\/guide\/[a-z0-9-]{2,60}\.html$/.test(url.pathname)
+              ? url.pathname.replace(/\.html$/, '').replace(/\/+$/, '')
+              : null;
+    if (alias) return Response.redirect(new URL(alias + url.search, url.origin).toString(), 301);
+
     // 首页：Assets 关掉了自动 index 解析，这里显式指到 index.html
-    if (url.pathname === '/' || url.pathname === '/index.html') {
+    if (url.pathname === '/') {
       return serveHtml(env, request, url, '/index.html');
     }
 
